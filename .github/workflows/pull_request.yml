@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+
+concurrency:
+  group: CI-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITHUB_TOKEN: ${{ secrets.CI_BOT_TOKEN }}
+
+jobs:
+
+  test:
+    name: Tests
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  auto-approve:
+    name: Auto approve update PRs
+    needs: [ test ]
+    if: startsWith(github.head_ref, 'update/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hmarr/auto-approve-action@v4
+
+  auto-merge:
+    name: Auto merge patch updates
+    if: github.head_ref == 'update/patches'
+    runs-on: ubuntu-latest
+    needs: auto-approve
+    steps:
+      - uses: "pascalgn/automerge-action@v0.16.4"
+        env:
+          MERGE_METHOD: "squash"
+          MERGE_REQUIRED_APPROVALS: 1
+          MERGE_LABELS: ""
+          UPDATE_METHOD: "rebase"
+          MERGE_RETRY_SLEEP: 120000
+          MERGE_DELETE_BRANCH: true
+          MERGE_RETRIES: 10

@@ -1,0 +1,34 @@
+---
+alwaysApply: true
+---
+# Engineering Rigor Rules
+
+## Core Principle: Solve the actual problem, don't dodge it
+
+1. **Analyze before workarounding** — investigate WHY something fails; don't jump to "use X instead" without understanding the root cause.
+2. **Articulate precisely** — state what we're trying to achieve, what's blocking us, and the exact technical reason.
+3. **Explore proper solutions first** — subclassing/wrapping, alternative constructors. Check source code. Workarounds are a last resort.
+4. **Easy ≠ correct** — the right solution may require more code but preserves semantics.
+5. **When the user pushes back** — STOP, re-read the requirement, ask if needed. Never repeat the rejected approach with minor variations.
+6. **Ask before big changes** — rewriting a file or switching approaches requires user approval. Small incremental fixes don't.
+
+## Goal-Driven Execution
+
+Transform vague tasks into verifiable goals:
+- "Add validation" → write failing tests, then make them pass
+- "Fix the bug" → write a failing test, then fix
+- "Refactor X" → tests pass before and after
+
+For multi-step tasks: `1. [Step] → verify: [check]`
+
+**Strong success criteria → iterate autonomously. Weak/ambiguous → ask for clarification.**
+
+## Anti-patterns
+❌ "The simplest fix..." / "Pragmatically speaking..." / "From a different angle..." (dodging)
+❌ Repeating the same workaround after pushback
+❌ Calling a workaround "correct"
+
+## Correct behavior
+✅ "The root cause is X; let me fix it by Y."
+✅ Trace through the code before concluding.
+✅ Preserve invariants even when it requires more code.
