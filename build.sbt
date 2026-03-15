@@ -16,11 +16,11 @@ lazy val scalacFromEnv = Seq.concat(
 )
 ThisBuild / scalacOptions ++= scalacFromEnv
 ThisBuild / libraryDependencySchemes += "org.typelevel" %% "otel4s-core-trace" % "always"
-ThisBuild / libraryDependencySchemes += "io.getquill"  %% "quill-engine"      % "always"
+ThisBuild / libraryDependencySchemes += "io.getquill"   %% "quill-engine"      % "always"
 
 val http4sVersion      = "0.23.33"
 val circeVersion       = "0.14.15"
-val fs2Version         = "3.12.2"
+val fs2Version         = "3.13.0"
 val otel4sVersion      = "0.16.1"
 val scribeVersion      = "3.17.0"
 val scalatestVersion   = "3.2.19"
@@ -45,9 +45,9 @@ lazy val server = (project in file("server"))
   .enablePlugins(JavaServerAppPackaging, DockerPlugin)
   .dependsOn(shared.jvm)
   .settings(
-    name                          := "sding",
-    description                   := "sding",
-    assembly / assemblyOutputPath := file("target/sding-uber.jar"),
+    name                             := "sding",
+    description                      := "sding",
+    assembly / assemblyOutputPath    := file("target/sding-uber.jar"),
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", "maven", "org.webjars", "swagger-ui", "pom.properties") =>
         MergeStrategy.singleOrError
@@ -61,8 +61,8 @@ lazy val server = (project in file("server"))
         val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
         oldStrategy(x)
     },
-    buildInfoKeys    := Seq[BuildInfoKey](name, version),
-    buildInfoPackage := "sding",
+    buildInfoKeys            := Seq[BuildInfoKey](name, version),
+    buildInfoPackage         := "sding",
     Test / parallelExecution := true,
     Test / fork              := true,
     Test / javaOptions ++= Seq("-Xms512m", "-Xmx2g", "-XX:+AlwaysPreTouch"),
@@ -77,44 +77,44 @@ lazy val server = (project in file("server"))
     Docker / defaultLinuxInstallLocation := "/app",
     dockerExposedPorts                   := Seq(8080),
     dockerCmd                            := Seq(s"/app/bin/sding"),
-    dockerCommands := dockerCommands.value.filterNot {
+    dockerCommands                       := dockerCommands.value.filterNot {
       case ExecCmd("ENTRYPOINT", _*) => true
       case _                         => false
     },
     libraryDependencies ++= Seq(
-      "org.http4s"    %% "http4s-core"         % http4sVersion,
-      "org.http4s"    %% "http4s-client"       % http4sVersion,
-      "org.http4s"    %% "http4s-server"       % http4sVersion,
-      "org.http4s"    %% "http4s-dsl"          % http4sVersion,
-      "org.http4s"    %% "http4s-ember-client" % http4sVersion,
-      "org.http4s"    %% "http4s-ember-server" % http4sVersion,
-      "io.circe"      %% "circe-literal"                 % circeVersion,
-      "org.http4s"    %% "http4s-circe"                  % http4sVersion,
-      "is.cir"        %% "ciris"                         % "3.7.0",
-      "org.typelevel" %% "cats-effect"                   % "3.6.3",
-      "org.scalatest" %% "scalatest"                     % scalatestVersion % Test,
-      "org.typelevel" %% "cats-effect-testing-scalatest" % "1.6.0"          % Test,
-      "org.typelevel" %% "cats-effect-testkit"           % "3.6.3"          % Test,
-      "co.fs2"        %% "fs2-core"            % fs2Version,
-      "co.fs2"        %% "fs2-io"              % fs2Version,
-      "org.typelevel" %% "otel4s-sdk"          % otel4sVersion,
-      "org.typelevel" %% "otel4s-sdk-exporter" % otel4sVersion,
-      "com.outr"            %% "scribe"              % scribeVersion,
-      "com.outr"            %% "scribe-slf4j2"       % scribeVersion,
-      "com.outr"            %% "scribe-cats"         % scribeVersion,
-      "com.outr"            %% "scribe-json-circe"   % scribeVersion,
-      "org.bsc.langgraph4j"  % "langgraph4j-core"            % langgraph4jVersion,
-      "dev.langchain4j"      % "langchain4j"                  % langchain4jVersion,
-      "dev.langchain4j"      % "langchain4j-google-ai-gemini" % langchain4jVersion,
-      "dev.langchain4j"      % "langchain4j-open-ai"          % langchain4jVersion,
-      "dev.langchain4j"      % "langchain4j-anthropic"        % langchain4jVersion,
-      "org.snakeyaml"        % "snakeyaml-engine"             % "2.9",
-      "io.getquill"         %% "quill-jdbc"                   % "4.8.6",
-      "org.flywaydb"         % "flyway-core"                  % "11.3.0",
-      "org.flywaydb"         % "flyway-database-postgresql"   % "11.3.0",
-      "org.postgresql"       % "postgresql"                   % "42.7.5",
-      "com.github.jwt-scala" %% "jwt-circe"                  % "10.0.4",
-      "at.favre.lib"         % "bcrypt"                       % "0.10.2"
+      "org.http4s"           %% "http4s-core"                   % http4sVersion,
+      "org.http4s"           %% "http4s-client"                 % http4sVersion,
+      "org.http4s"           %% "http4s-server"                 % http4sVersion,
+      "org.http4s"           %% "http4s-dsl"                    % http4sVersion,
+      "org.http4s"           %% "http4s-ember-client"           % http4sVersion,
+      "org.http4s"           %% "http4s-ember-server"           % http4sVersion,
+      "io.circe"             %% "circe-literal"                 % circeVersion,
+      "org.http4s"           %% "http4s-circe"                  % http4sVersion,
+      "is.cir"               %% "ciris"                         % "3.7.0",
+      "org.typelevel"        %% "cats-effect"                   % "3.6.3",
+      "org.scalatest"        %% "scalatest"                     % scalatestVersion % Test,
+      "org.typelevel"        %% "cats-effect-testing-scalatest" % "1.6.0"          % Test,
+      "org.typelevel"        %% "cats-effect-testkit"           % "3.6.3"          % Test,
+      "co.fs2"               %% "fs2-core"                      % fs2Version,
+      "co.fs2"               %% "fs2-io"                        % fs2Version,
+      "org.typelevel"        %% "otel4s-sdk"                    % otel4sVersion,
+      "org.typelevel"        %% "otel4s-sdk-exporter"           % otel4sVersion,
+      "com.outr"             %% "scribe"                        % scribeVersion,
+      "com.outr"             %% "scribe-slf4j2"                 % scribeVersion,
+      "com.outr"             %% "scribe-cats"                   % scribeVersion,
+      "com.outr"             %% "scribe-json-circe"             % scribeVersion,
+      "org.bsc.langgraph4j"   % "langgraph4j-core"              % langgraph4jVersion,
+      "dev.langchain4j"       % "langchain4j"                   % langchain4jVersion,
+      "dev.langchain4j"       % "langchain4j-google-ai-gemini"  % langchain4jVersion,
+      "dev.langchain4j"       % "langchain4j-open-ai"           % langchain4jVersion,
+      "dev.langchain4j"       % "langchain4j-anthropic"         % langchain4jVersion,
+      "org.snakeyaml"         % "snakeyaml-engine"              % "2.9",
+      "io.getquill"          %% "quill-jdbc"                    % "4.8.6",
+      "org.flywaydb"          % "flyway-core"                   % "11.3.0",
+      "org.flywaydb"          % "flyway-database-postgresql"    % "11.3.0",
+      "org.postgresql"        % "postgresql"                    % "42.7.5",
+      "com.github.jwt-scala" %% "jwt-circe"                     % "10.0.4",
+      "at.favre.lib"          % "bcrypt"                        % "0.10.2"
     )
   )
 
@@ -139,9 +139,9 @@ lazy val bundleFrontend = taskKey[Unit]("Build optimized frontend JS and copy to
 lazy val root = (project in file("."))
   .aggregate(shared.jvm, shared.js, server, client)
   .settings(
-    name    := "sding-root",
-    publish := {},
-    publishLocal := {},
+    name           := "sding-root",
+    publish        := {},
+    publishLocal   := {},
     bundleFrontend := {
       val log = streams.value.log
       log.info("Building optimized frontend JS...")
