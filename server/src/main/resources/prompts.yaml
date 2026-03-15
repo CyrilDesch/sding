@@ -1,0 +1,233 @@
+# Mock prompts — replace with real content before production use.
+# System prompts are loaded once at agent instantiation.
+# Task prompts are loaded per-task execution and support Jinja2 templating.
+
+system_prompts:
+  BusinessDataScientistAgent: |
+    You are a Business Data Scientist expert. Analyze data and market information to provide
+    actionable business insights, competitive intelligence, and data-driven recommendations.
+    Always structure your output clearly and support your conclusions with evidence.
+
+  CreativePMAgent: |
+    You are a Creative Product Manager. Generate innovative product ideas, feature proposals,
+    and creative solutions to user problems. Think outside the box while staying grounded in
+    user needs and business viability.
+
+  GrowthHackerAgent: |
+    You are a Growth Hacker specialist. Identify growth opportunities, viral loops, and
+    acquisition strategies. Focus on scalable, measurable tactics that drive user growth
+    and engagement.
+
+  ProductStrategistAgent: |
+    You are a Product Strategist. Define product vision, roadmaps, and strategic priorities.
+    Balance short-term execution with long-term positioning, always keeping user value and
+    business outcomes in mind.
+
+  ProfessionalDocumentWriterAgent: |
+    You are a Professional Document Writer. Produce clear, well-structured, and polished
+    documents. Adapt tone and format to the target audience while maintaining accuracy and
+    completeness.
+
+  UXDesignerAgent: |
+    You are a UX Designer. Create user-centered design solutions, interaction flows, and
+    wireframe concepts. Prioritize usability, accessibility, and delightful user experiences.
+
+  UXResearcherAgent: |
+    You are a UX Researcher. Conduct qualitative and quantitative research to understand
+    user behaviors, needs, and pain points. Synthesize findings into actionable insights.
+
+  SkepticalUserAgent: |
+    You are a Skeptical User. Question assumptions, challenge product claims, and surface
+    potential objections that a critical early adopter would raise. Be constructive but
+    demanding.
+
+  HyperConcernedUserAgent: |
+    You are a Hyper-Concerned User. Express strong worries about risks, privacy, reliability,
+    and edge cases. Help the team anticipate worst-case scenarios and build more resilient
+    products.
+
+task_prompts:
+  CompetitiveAnalysisTask: |
+    Perform a competitive analysis for the following product variant.
+
+    SCAMPER Variant:
+    {{ scamper_variant }}
+
+    Empathy Map:
+    {{ empathy_map_result }}
+
+    Project Type: {{ project_type }}
+    Software Type: {{ project_software_type }}
+    Language: {{ project_language }}
+
+    Identify the top competitors, their strengths and weaknesses, and positioning opportunities.
+
+  Crazy8sTask: |
+    Generate 8 rapid creative concepts for the following context.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Empathy Map:
+    {{ empathy_map_result }}
+
+    Language: {{ project_language }}
+
+    For each concept provide a name, one-line description, and key differentiator.
+
+  EmpathyMapTask: |
+    Build a detailed empathy map for the target user of this project.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Language: {{ project_language }}
+
+    Cover: what users say, think, do, and feel; their pains and gains.
+
+  HMWTask: |
+    Generate "How Might We" (HMW) statements from the following problem space.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Empathy Map:
+    {{ empathy_map_result }}
+
+    JTBD:
+    {{ jtbd_result }}
+
+    Language: {{ project_language }}
+
+  JTBDDefinitionTask: |
+    Define the Jobs-To-Be-Done (JTBD) for the target user.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Empathy Map:
+    {{ empathy_map_result }}
+
+    Language: {{ project_language }}
+
+    Provide functional, emotional, and social jobs with expected outcomes.
+
+  PremiumReportTask: |
+    Write a comprehensive premium report for this project.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Analysis Results:
+    {{ analysis_results }}
+
+    Language: {{ project_language }}
+
+    Include executive summary, market opportunity, user insights, and strategic recommendations.
+
+  ProblemReformulationTask: |
+    Reformulate and sharpen the problem statement for this project.
+
+    Original Problem:
+    {{ original_problem }}
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Empathy Map:
+    {{ empathy_map_result }}
+
+    Language: {{ project_language }}
+
+  PrototypeBuildTask: |
+    Design a prototype plan for the following product concept.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Selected Problem:
+    {{ selected_problem }}
+
+    Language: {{ project_language }}
+
+    Describe the key screens, user flows, and assumptions to validate.
+
+  ScamperTask: |
+    Apply the SCAMPER method to generate product variants.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Empathy Map:
+    {{ empathy_map_result }}
+
+    Weird Problems:
+    {{ weird_problems }}
+
+    Language: {{ project_language }}
+
+    For each SCAMPER lens (Substitute, Combine, Adapt, Modify, Put to other use, Eliminate, Reverse)
+    propose a distinct product variant.
+
+  SynthetizeProjectTask: |
+    Synthesize all research and prototype findings into a final project summary.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Prototype Build Results:
+    {{ prototype_build_results }}
+
+    User Test Results:
+    {{ user_test_results }}
+
+    Language: {{ project_language }}
+
+  TrendAnalysisTask: |
+    Research and analyze market trends relevant to this product variant.
+
+    SCAMPER Variant:
+    {{ scamper_variant }}
+
+    Project Type: {{ project_type }}
+    Software Type: {{ project_software_type }}
+    Language: {{ project_language }}
+
+    Identify emerging trends, technology shifts, and market signals that affect this variant.
+
+  UserInterviewTask: |
+    Conduct a simulated user interview for the following prototype.
+
+    Prototype:
+    {{ prototype }}
+
+    User Persona:
+    {{ user_persona }}
+
+    Language: {{ project_language }}
+
+    Ask probing questions and capture user reactions, concerns, and suggestions.
+
+  UserTestTask: |
+    Simulate a user test session for the following prototype.
+
+    Prototype:
+    {{ prototype }}
+
+    Test Scenario:
+    {{ test_scenario }}
+
+    Language: {{ project_language }}
+
+    Evaluate usability, identify friction points, and capture qualitative feedback.
+
+  WeirdProblemGenerationTask: |
+    Generate unconventional and provocative problem statements to spark creative thinking.
+
+    Project Requirements:
+    {{ project_requirements }}
+
+    Language: {{ project_language }}
+
+    Combine random nouns with the problem space to create unexpected angles.
+    Noun list hint: {{ noun_list }}
