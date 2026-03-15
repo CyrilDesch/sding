@@ -110,9 +110,9 @@ object AppConfig:
       (
         get("POSTGRES_HOST").default("localhost"),
         get("POSTGRES_PORT").as[Int].default(5432),
-        get("POSTGRES_DATABASE"),
-        get("POSTGRES_USER"),
-        get("POSTGRES_PASSWORD").secret,
+        get("POSTGRES_DATABASE").default("sding"),
+        get("POSTGRES_USER").default("sding"),
+        get("POSTGRES_PASSWORD").default("change-me-in-production").secret,
         get("POSTGRES_POOL_SIZE").as[Int].default(20),
         get("POSTGRES_MAX_OVERFLOW").as[Int].default(10)
       ).parMapN(PostgresSettings.apply)

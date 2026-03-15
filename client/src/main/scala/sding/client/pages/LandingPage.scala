@@ -22,11 +22,11 @@ object LandingPage:
           cls := "mb-8",
           div(
             cls := "w-16 h-16 mx-auto mb-6 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg",
-            span(cls := "text-white text-2xl font-bold", "B")
+            span(cls := "text-white text-2xl font-bold", "S")
           ),
           h1(
             cls := "text-5xl font-bold text-gray-900 mb-4 tracking-tight",
-            "Brainstormer"
+            "sding"
           ),
           p(
             cls := "text-xl text-gray-500 max-w-lg mx-auto leading-relaxed",

@@ -1,5 +1,5 @@
 # Load .env then run command. Usage: $(call with_env,cmd,arg)
-with_env = set -a && [ -f .env ] && . ./.env && set +a && $1 $2
+with_env = set -a && { [ -f .env ] && . ./.env || true; } && set +a && $1 $2
 
 .PHONY: dev db help
 

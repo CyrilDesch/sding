@@ -19,9 +19,9 @@ object Navbar:
             onClick --> { _ => Router.navigateTo(Page.Landing) },
             div(
               cls := "w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center",
-              span(cls := "text-white text-sm font-bold", "B")
+              span(cls := "text-white text-sm font-bold", "S")
             ),
-            span(cls := "text-base font-semibold text-gray-900", "Brainstormer")
+            span(cls := "text-base font-semibold text-gray-900", "sding")
           ),
           child.maybe <-- AuthState.isLoggedIn.map {
             case true =>

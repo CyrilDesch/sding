@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: sding
       POSTGRES_USER: sding
-      POSTGRES_PASSWORD: sding_dev
+      POSTGRES_PASSWORD: change-me-in-production
     ports:
       - "5432:5432"
     volumes:
