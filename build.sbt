@@ -109,7 +109,7 @@ lazy val server = (project in file("server"))
       "dev.langchain4j"       % "langchain4j-google-ai-gemini"  % langchain4jVersion,
       "dev.langchain4j"       % "langchain4j-open-ai"           % langchain4jVersion,
       "dev.langchain4j"       % "langchain4j-anthropic"         % langchain4jVersion,
-      "org.snakeyaml"         % "snakeyaml-engine"              % "2.10",
+      "org.snakeyaml"         % "snakeyaml-engine"              % "3.0.1",
       "io.getquill"          %% "quill-jdbc"                    % "4.8.6",
       "org.flywaydb"          % "flyway-core"                   % "11.20.3",
       "org.flywaydb"          % "flyway-database-postgresql"    % "11.20.3",
