@@ -111,8 +111,8 @@ lazy val server = (project in file("server"))
       "dev.langchain4j"       % "langchain4j-anthropic"         % langchain4jVersion,
       "org.snakeyaml"         % "snakeyaml-engine"              % "3.0.1",
       "io.getquill"          %% "quill-jdbc"                    % "4.8.6",
-      "org.flywaydb"          % "flyway-core"                   % "11.20.3",
-      "org.flywaydb"          % "flyway-database-postgresql"    % "11.20.3",
+      "org.flywaydb"          % "flyway-core"                   % "12.1.0",
+      "org.flywaydb"          % "flyway-database-postgresql"    % "12.1.0",
       "org.postgresql"        % "postgresql"                    % "42.7.10",
       "com.github.jwt-scala" %% "jwt-circe"                     % "11.0.3",
       "at.favre.lib"          % "bcrypt"                        % "0.10.2"
