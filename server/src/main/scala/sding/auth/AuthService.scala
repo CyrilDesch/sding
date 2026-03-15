@@ -63,13 +63,18 @@ object AuthService:
           .flatMap { claim =>
             val json   = io.circe.parser.parse(claim.content).getOrElse(Json.Null)
             val cursor = json.hcursor
-            (cursor.get[String]("sub"), cursor.get[String]("email"), cursor.get[String]("role")) match
-              case (Right(sub), Right(em), Right(ro)) =>
+            (claim.subject, cursor.get[String]("email"), cursor.get[String]("role")) match
+              case (Some(sub), Right(em), Right(ro)) =>
                 Sync[F].pure(AuthUser(UserId.fromString(sub), em, ro))
-              case _ =>
-                Sync[F].raiseError(AppError.AuthError.TokenExpired("Invalid token payload"))
+              case (sub, em, ro) =>
+                Sync[F].raiseError(
+                  AppError.AuthError.TokenExpired(s"Invalid token payload: sub=$sub, email=$em, role=$ro")
+                )
           }
-          .handleErrorWith(_ => Sync[F].raiseError(AppError.AuthError.TokenExpired("Invalid or expired token")))
+          .handleErrorWith { e =>
+            Sync[F].delay(scribe.warn(s"Token verification failed: ${e.getMessage}")) *>
+              Sync[F].raiseError(AppError.AuthError.TokenExpired("Invalid or expired token"))
+          }
 
       private def generateToken(userId: UserId, email: String, role: String): F[AuthToken] =
         Sync[F].delay {
@@ -78,11 +83,11 @@ object AuthService:
           val claim = JwtClaim(
             content = Json
               .obj(
-                "sub"   -> Json.fromString(userId.asString),
                 "email" -> Json.fromString(email),
                 "role"  -> Json.fromString(role)
               )
               .noSpaces,
+            subject = Some(userId.asString),
             issuedAt = Some(now.getEpochSecond),
             expiration = Some(exp.getEpochSecond)
           )

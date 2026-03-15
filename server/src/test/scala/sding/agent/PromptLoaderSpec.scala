@@ -49,18 +49,18 @@ class PromptLoaderSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
   "PromptTemplate" should {
 
     "render template variables" in {
-      val pt = PromptTemplate("test", "Hello {{ name }}, welcome to {{ place }}!")
+      val pt = PromptTemplate("test", "Hello {{ name }}, welcome to {{ place }}!", version = 1)
       pt.render(Map("name" -> "Alice", "place" -> "Wonderland")) shouldBe
         "Hello Alice, welcome to Wonderland!"
     }
 
     "handle variables without spaces around braces" in {
-      val pt = PromptTemplate("test", "Hello {{name}}!")
+      val pt = PromptTemplate("test", "Hello {{name}}!", version = 1)
       pt.render(Map("name" -> "Bob")) shouldBe "Hello Bob!"
     }
 
     "leave unmatched variables unchanged" in {
-      val pt = PromptTemplate("test", "Hello {{ name }}, {{ unknown }}!")
+      val pt = PromptTemplate("test", "Hello {{ name }}, {{ unknown }}!", version = 1)
       pt.render(Map("name" -> "Alice")) shouldBe "Hello Alice, {{ unknown }}!"
     }
   }

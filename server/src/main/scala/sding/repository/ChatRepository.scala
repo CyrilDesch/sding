@@ -2,6 +2,7 @@ package sding.repository
 
 import cats.effect.Sync
 import io.getquill.*
+import java.time.Instant
 import java.util.UUID
 import sding.domain.ChatId
 import sding.domain.ProjectId
@@ -11,7 +12,8 @@ final case class ChatRecord(
     id: ChatId,
     projectId: ProjectId,
     currentStepId: Option[StepId],
-    title: String
+    title: String,
+    createdAt: Instant
 )
 
 final class ChatRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
@@ -39,7 +41,8 @@ final class ChatRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
       id = ChatId.random,
       projectId = pid,
       currentStepId = Some(sid),
-      title = title
+      title = title,
+      createdAt = Instant.now()
     )
     run(query[ChatRecord].insertValue(lift(record)))
     record

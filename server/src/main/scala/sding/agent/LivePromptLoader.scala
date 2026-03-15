@@ -19,7 +19,7 @@ object LivePromptLoader:
                 case Some(prompt) => Sync[F].pure(prompt)
                 case None         =>
                   Sync[F].raiseError(
-                    AppError.AgentError.LlmInvocationFailed(name, s"System prompt '$name' not found in prompts.yaml")
+                    AppError.AgentError.PromptLoadFailed(name, s"System prompt '$name' not found in prompts.yaml")
                   )
             }
 
@@ -28,10 +28,10 @@ object LivePromptLoader:
               val taskPrompts   = cache.getOrElse("task_prompts", Map.empty)
               val systemPrompts = cache.getOrElse("system_prompts", Map.empty)
               taskPrompts.get(name).orElse(systemPrompts.get(name)) match
-                case Some(template) => Sync[F].pure(PromptTemplate(name, template))
+                case Some(template) => Sync[F].pure(PromptTemplate(name, template, version = 1))
                 case None           =>
                   Sync[F].raiseError(
-                    AppError.AgentError.LlmInvocationFailed(name, s"Prompt '$name' not found in prompts.yaml")
+                    AppError.AgentError.PromptLoadFailed(name, s"Prompt '$name' not found in prompts.yaml")
                   )
             }
       }
@@ -42,7 +42,7 @@ object LivePromptLoader:
     Sync[F].blocking {
       val is: InputStream = getClass.getClassLoader.getResourceAsStream("prompts.yaml")
       if is == null then
-        throw AppError.AgentError.LlmInvocationFailed("PromptLoader", "prompts.yaml not found on classpath")
+        throw AppError.AgentError.PromptLoadFailed("PromptLoader", "prompts.yaml not found on classpath")
       try
         val settings = org.snakeyaml.engine.v2.api.LoadSettings.builder().build()
         val yaml     = new org.snakeyaml.engine.v2.api.Load(settings)

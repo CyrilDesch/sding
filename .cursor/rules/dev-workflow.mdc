@@ -1,0 +1,140 @@
+---
+description: Full verified development cycle for sding — spec to client delivery. Use when implementing a feature end-to-end: failing tests → backend + frontend implementation → compile/unit verification.
+alwaysApply: false
+---
+# Dev — Spec to Client Delivery
+
+Verified development cycle for sding. Run each phase in order without stopping to ask for approval unless a decision is genuinely ambiguous.
+
+**The agent calls `sbt` and `pnpm` directly. The user runs infra scripts manually.**
+
+Never call `docker compose` directly — ask the user to run `./scripts/dev-docker.sh` if infra is needed.
+
+---
+
+## Phase 1 — Write failing tests first
+
+**Never touch production code before the tests exist.**
+
+### 1a — Unit / service tests (Scala)
+
+Location pattern:
+- Protocol changes → `shared/src/test/scala/sding/protocol/`
+- Server logic → `server/src/test/scala/sding/`
+- Agent behaviour → `server/src/test/scala/sding/agent/AgentSpec.scala`
+
+Stub the LLM boundary (`LlmClient`) — never call a real provider in tests.
+
+Run to confirm the test fails:
+```bash
+sbt "testOnly *YourSpec"
+```
+
+---
+
+## Phase 2 — Implement (backend)
+
+Work layer by layer, smallest first:
+
+1. **Shared protocol** (`shared/src/main/scala/sding/protocol/`) — add/change types, ensure codec round-trips have tests.
+2. **DB migration** (`server/src/main/resources/db/migration/`) — `V{N}__description.sql`. Increment N from the highest existing file.
+3. **Domain / service layer** — pure logic, tagless final (`Agent[F]`, `ChatService[F]`, etc.).
+4. **HTTP routes** — `server/src/main/scala/sding/http/`.
+
+After each file change, verify compilation:
+```bash
+GITHUB_ACTIONS=TRUE sbt scalafmtAll Test/compile scalafmtAll
+```
+
+Fix all errors before moving to the next layer.
+
+---
+
+## Phase 3 — Implement (frontend)
+
+Location: `client/src/`
+
+Key files:
+- `main.tsx` — entry point and runtime setup
+- `App.tsx` — routing
+- `pages/ChatPage.tsx` — main chat UI and SSE event rendering
+- `components/` — reusable UI components
+- `services/SseService.ts` — SSE stream parsing
+- `services/` — Effect-TS services
+
+After changes, verify types and lint (from `client/`):
+```bash
+rtk pnpm lint && rtk pnpm format && rtk pnpm test
+```
+
+The Vite dev server at `:5173` proxies `/api` → backend port (set via `PORT` in `.env`). Confirm the UI reflects your changes at `http://localhost:5173`.
+
+---
+
+## Phase 4 — Verify: unit tests
+
+```bash
+# Full suite
+sbt test
+
+# Targeted
+sbt "testOnly *YourSpec"
+
+# CI gate (warnings as errors)
+GITHUB_ACTIONS=TRUE sbt scalafmtAll Test/compile scalafmtAll
+```
+
+---
+
+## Phase 5 — Completion report
+
+Once all gates are green, report:
+
+```
+## What was built
+<brief description>
+
+## Files changed
+<list with one-line description per file>
+
+## Verified
+- [ ] GITHUB_ACTIONS=TRUE sbt scalafmtAll Test/compile scalafmtAll — PASS
+- [ ] sbt test — PASS (N tests)
+
+## Residual risk / follow-up
+<anything not covered by tests>
+```
+
+---
+
+## Quick reference — project commands
+
+| Task | Command |
+|------|---------|
+| Start infra | `./scripts/dev-docker.sh` *(user runs this — assume already done)* |
+| Start backend (hot-reload) | `./scripts/dev-server.sh` |
+| Start frontend (HMR) | `./scripts/dev-client.sh` |
+| Frontend type-check | `rtk pnpm tsc` |
+| Frontend lint | `rtk pnpm lint` |
+| Frontend format check | `rtk pnpm format` |
+| Format + compile check (Scala) | `GITHUB_ACTIONS=TRUE sbt scalafmtAll Test/compile scalafmtAll` |
+| Run all unit tests | `sbt test` |
+| Run one test file | `sbt "testOnly *SpecName"` |
+| Build fat JAR | `sbt assembly` |
+| Build Docker image | `sbt Docker/publishLocal` |
+
+## Stack layers
+
+```
+shared/    ← protocol types, SseEvent, LlmProvider, codecs
+server/    ← http4s routes, cats-effect services, Quill DB, Agent, LlmClient
+client/ ← React 19 + Effect-TS SPA
+```
+
+## Non-negotiable rules
+
+- No production code without a test.
+- Protocol changes require codec tests first.
+- LLM logic tested against deterministic stubs — no real model calls in CI.
+- Every bug fix starts with a failing test.
+- CI gate must stay green before any merge.

@@ -14,7 +14,8 @@ final case class AppConfig(
     postgres: PostgresSettings,
     rateLimit: RateLimitSettings,
     search: SearchSettings,
-    logging: LoggingSettings
+    logging: LoggingSettings,
+    langfuse: LangfuseSettings
 )
 
 final case class AppSettings(
@@ -61,6 +62,13 @@ final case class SearchSettings(
 final case class LoggingSettings(
     level: String,
     format: String
+)
+
+final case class LangfuseSettings(
+    enabled: Boolean,
+    baseUrl: String,
+    publicKey: Secret[String],
+    secretKey: Secret[String]
 )
 
 object AppConfig:
@@ -134,6 +142,14 @@ object AppConfig:
         get("LOG_FORMAT").default("json")
       ).parMapN(LoggingSettings.apply)
 
+    val langfuseSettings =
+      (
+        get("LANGFUSE_ENABLED").as[Boolean].default(true),
+        get("LANGFUSE_BASE_URL").default("http://localhost:3000"),
+        get("LANGFUSE_PUBLIC_KEY").default("pk-lf-sding-local-public-key").secret,
+        get("LANGFUSE_SECRET_KEY").default("sk-lf-sding-local-secret-key").secret
+      ).parMapN(LangfuseSettings.apply)
+
     (
       appSettings,
       corsSettings,
@@ -142,7 +158,8 @@ object AppConfig:
       postgresSettings,
       rateLimitSettings,
       searchSettings,
-      loggingSettings
+      loggingSettings,
+      langfuseSettings
     ).parMapN(AppConfig.apply)
 
   val config: ConfigValue[Effect, AppConfig] =

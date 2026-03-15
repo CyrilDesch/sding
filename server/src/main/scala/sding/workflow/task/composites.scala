@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import sding.agent.Agent
 import sding.agent.AgentResult
 import sding.agent.PromptLoader
+import sding.protocol.WorkflowStep
 import sding.workflow.io.ChatContext
 import sding.workflow.result.*
 import sding.workflow.state.ProjectContextState
@@ -15,7 +16,7 @@ final class UserInterviewsTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends TaskNode[F]:
-  val name = "user_interviews"
+  val name = WorkflowStep.UserInterviews
 
   def execute(state: ProjectContextState): F[ProjectContextState] =
     for
@@ -26,11 +27,12 @@ final class UserInterviewsTask[F[_]: Async](
         "reformulated_problems" -> state.reformulatedProblems.map(_.toString).getOrElse(""),
         "project_language"      -> state.projectLanguage.getOrElse("English")
       )
+      promptLink    = sding.agent.PromptLink(pt.name, pt.version, chatContext.sessionId)
       hyperPrompt   = pt.render(baseVars ++ Map("persona" -> "hyper_concerned_user"))
       skepticPrompt = pt.render(baseVars ++ Map("persona" -> "skeptical_user"))
       (hyperResult, skepticResult) <- (
-        agent.call[Interview](hyperPrompt),
-        agent.call[Interview](skepticPrompt)
+        agent.call[Interview](hyperPrompt, promptLink),
+        agent.call[Interview](skepticPrompt, promptLink)
       ).parTupled
       interviews <- (hyperResult, skepticResult) match
         case (AgentResult.Success(h, _), AgentResult.Success(s, _)) =>
@@ -47,7 +49,7 @@ final class PrototypeBuildsTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends TaskNode[F]:
-  val name = "prototype_builds"
+  val name = WorkflowStep.PrototypeBuilds
 
   private val maxRetries = 3
   private val minScore   = 5
@@ -64,8 +66,9 @@ final class PrototypeBuildsTask[F[_]: Async](
         "empathy_map_result"   -> state.empathyMapResult.map(_.toString).getOrElse(""),
         "project_language"     -> state.projectLanguage.getOrElse("English")
       )
+      sessionId = chatContext.sessionId
       results <- variants.parTraverse { variant =>
-        processVariant(variant, baseVars, ptBuild, ptTest, ptSynthetize)
+        processVariant(variant, baseVars, ptBuild, ptTest, ptSynthetize, sessionId)
       }
       storyboards    = results.map(_._1)
       userTests      = results.map(_._2)
@@ -82,19 +85,23 @@ final class PrototypeBuildsTask[F[_]: Async](
       baseVars: Map[String, String],
       ptBuild: sding.agent.PromptTemplate,
       ptTest: sding.agent.PromptTemplate,
-      ptSynthetize: sding.agent.PromptTemplate
+      ptSynthetize: sding.agent.PromptTemplate,
+      sessionId: String
   ): F[(Storyboard, UserTest, ProjectCardSchema)] =
-    val variantVars = baseVars ++ Map("scamper_variant" -> variant.toString)
+    val variantVars    = baseVars ++ Map("scamper_variant" -> variant.toString)
+    val buildLink      = sding.agent.PromptLink(ptBuild.name, ptBuild.version, sessionId)
+    val testLink       = sding.agent.PromptLink(ptTest.name, ptTest.version, sessionId)
+    val synthetizeLink = sding.agent.PromptLink(ptSynthetize.name, ptSynthetize.version, sessionId)
 
     def buildAndTest(iteration: Int): F[(Storyboard, UserTest)] =
       for
-        buildResult <- agent.call[Storyboard](ptBuild.render(variantVars))
+        buildResult <- agent.call[Storyboard](ptBuild.render(variantVars), buildLink)
         storyboard  <- buildResult match
           case AgentResult.Success(v, _) => Async[F].pure(v)
           case AgentResult.Failure(m, _) =>
             Async[F].raiseError(sding.domain.AppError.AgentError.LlmInvocationFailed(name, m))
         testPromptVars = variantVars ++ Map("storyboard" -> storyboard.toString)
-        testResult <- agent.call[UserTest](ptTest.render(testPromptVars))
+        testResult <- agent.call[UserTest](ptTest.render(testPromptVars), testLink)
         userTest   <- testResult match
           case AgentResult.Success(v, _) => Async[F].pure(v)
           case AgentResult.Failure(m, _) =>
@@ -111,7 +118,7 @@ final class PrototypeBuildsTask[F[_]: Async](
         "storyboard" -> storyboard.toString,
         "user_test"  -> userTest.toString
       )
-      synthResult <- agent.call[ProjectCardSchema](ptSynthetize.render(synthVars))
+      synthResult <- agent.call[ProjectCardSchema](ptSynthetize.render(synthVars), synthetizeLink)
       card        <- synthResult match
         case AgentResult.Success(v, _) => Async[F].pure(v)
         case AgentResult.Failure(m, _) =>

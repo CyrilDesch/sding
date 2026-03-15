@@ -1,0 +1,167 @@
+---
+description: React 19 + Effect-TS 3.x architecture rules — no useEffect in feature components, service pattern, TDD mandate
+globs: client/**/*.{ts,tsx}
+alwaysApply: false
+---
+# React + Effect-TS Rules
+
+## Project overview
+
+This client is a React 19 SPA with:
+- **React 19** (concurrent mode, `useSyncExternalStore`)
+- **Effect-TS 3.x** for all side effects and state management
+- **Tailwind CSS 4** for styling
+
+---
+
+## Architecture
+
+### Effect-TS runtime
+
+```
+client/src/runtime/
+├── index.ts          createAppRuntime() → ManagedRuntime
+├── AppLayer.ts       Merge of all services
+└── RuntimeContext.tsx React Context<ManagedRuntime> + Provider
+```
+
+The `ManagedRuntime` is created once in `main.tsx` via `<RuntimeProvider>`. Never create a runtime inside a component.
+
+### Services
+
+```
+client/src/services/
+├── <Domain>Service.ts   SubscriptionRef<State> + pure Effect mutations
+```
+
+All services use `SubscriptionRef` for reactive state and expose pure `Effect` functions for mutations.
+
+### Bridge hooks
+
+```
+client/src/hooks/
+├── useEffectTs.ts          Run Effect + interrupt on unmount
+├── useEffectTsValue.ts     Run Effect → reactive value via useSyncExternalStore
+│                           + useSubscriptionRef()
+└── use<Domain>Service.ts   Domain-specific hook wrapping runtime
+```
+
+---
+
+## Code style
+
+### The no-useEffect rule
+
+**Never import `useEffect` in feature components.** Use:
+
+```ts
+// Side effects on mount:
+useEffectTs(() => Effect.gen(function* () { ... }), [deps])
+
+// Reactive values:
+const value = useEffectTsValue(() => someEffect, fallback, [deps])
+
+// SubscriptionRef subscription:
+const state = useSubscriptionRef(stateRef, initialValue)
+```
+
+The only permitted `useLayoutEffect` calls are in:
+- `client/src/runtime/RuntimeContext.tsx` (runtime disposal)
+- `client/src/hooks/useEffectTs.ts` (fiber lifecycle)
+- `client/src/hooks/useEffectTsValue.ts` (subscription management)
+
+### Adding a new service
+
+1. Create `client/src/services/MyService.ts`:
+   ```ts
+   export class MyService extends Context.Tag('MyService')<MyService, {
+     readonly myRef: SubscriptionRef.SubscriptionRef<MyState>
+     readonly doSomething: Effect.Effect<void>
+   }>() {}
+   ```
+
+2. Implement `MyServiceLive` with `Layer.effect(MyService, Effect.gen(...))`
+
+3. Add to `client/src/runtime/AppLayer.ts`:
+   ```ts
+   export const AppLayer = Layer.mergeAll(..., MyServiceLive)
+   ```
+
+4. Create `client/src/hooks/useMyService.ts`:
+   ```ts
+   export function useMyService() {
+     const runtime = useRuntime()
+     const myRef = useMemo(() => runtime.runSync(MyService.pipe(Effect.map(s => s.myRef))), [runtime])
+     const myState = useSubscriptionRef(myRef, initialValue)
+     const doSomething = useCallback(() => runtime.runFork(MyService.pipe(Effect.flatMap(s => s.doSomething))), [runtime])
+     return { myState, doSomething }
+   }
+   ```
+
+---
+
+## Boundaries
+
+- **Never use `useEffect` in feature components** — use `useEffectTs`
+- **All shared state goes through services** — no prop-drilling or global variables
+- **Components must stay side-effect-free** — no direct API calls; use hooks
+
+---
+
+## TDD Mandate
+
+All code changes follow **red-green-refactor**:
+
+1. **Red** — write a failing test that captures the desired behaviour (must fail for the right reason, not a compile error)
+2. **Green** — write the minimum production code to make it pass
+3. **Refactor** — clean up while keeping tests green
+
+### Test file location
+
+Tests live in a top-level `client/test/` directory, mirroring the `client/src/` structure:
+
+| Source | Test |
+|--------|------|
+| `client/src/services/MyService.ts` | `client/test/services/MyService.test.ts` |
+| `client/src/hooks/useMyService.ts` | `client/test/hooks/useMyService.test.ts` |
+| `client/src/components/MyComponent.tsx` | `client/test/components/MyComponent.test.tsx` |
+
+Test utilities live in `client/test/testRuntime.ts` and `client/test/setup.ts`.
+
+### Rules
+
+- **No feature without tests** — every new function or component gets at least one test before merge
+- **Services** — test with `Effect.runPromise` + real `Layer`; do NOT `vi.mock()` Effect modules
+- **Hooks** — use `makeTestRuntime()` from `client/test/testRuntime.ts` + `renderHook`
+- **Components** — render with `@testing-library/react`, use `screen.getBy*`, no snapshot tests
+- **No `useEffect` in test helpers** — test utilities follow the same no-useEffect rule
+
+---
+
+## Sandbox and Branch Discipline
+
+Non-trivial changes (new features, service additions, refactors) are developed in an isolated branch or worktree before integration.
+
+```bash
+git worktree add ../sding-feature-xyz feature/xyz
+cd ../sding-feature-xyz
+
+npm run test:watch
+npm test   # must be green before committing
+```
+
+### Rules
+
+- **Never commit to `main` with failing tests** — run `npm test` before every commit
+- **New services** — develop in a branch; `AppLayer.ts` is the integration point
+
+---
+
+## Context7 library IDs
+
+Use these with `mcp__context7__query-docs`:
+
+| Library | Context7 ID |
+|---|---|
+| Effect-TS | `/llmstxt/effect_website_llms_txt` |
+| React | `/websites/react_dev` |

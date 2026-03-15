@@ -4,8 +4,10 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
+import sding.protocol.SelectionItem
 import sding.workflow.io.ChatContext
 import sding.workflow.io.MessageFormat
+import sding.workflow.io.UserInputRequest
 import sding.workflow.result.*
 import sding.workflow.state.ProjectContextState
 
@@ -13,10 +15,17 @@ class HumanTaskSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 
   private def scriptedChatContext(responses: List[String]): ChatContext[IO] =
     new ChatContext[IO]:
-      private var remaining                                                       = responses
-      def sendMessage(message: String, format: MessageFormat): IO[Unit]           = IO.unit
-      def sendState(message: String): IO[Unit]                                    = IO.unit
-      def requestInput(prompt: String, options: Option[List[String]]): IO[String] =
+      private var remaining                                             = responses
+      def sessionId: String                                             = "test-session"
+      def sendMessage(message: String, format: MessageFormat): IO[Unit] = IO.unit
+      def sendState(message: String): IO[Unit]                          = IO.unit
+      def requestInput(request: UserInputRequest): IO[String]           =
+        IO {
+          val resp = remaining.headOption.getOrElse("default")
+          remaining = remaining.drop(1)
+          resp
+        }
+      def requestSelection(title: String, items: List[SelectionItem], allowRetry: Boolean): IO[String] =
         IO {
           val resp = remaining.headOption.getOrElse("default")
           remaining = remaining.drop(1)
@@ -36,8 +45,8 @@ class HumanTaskSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
       }
     }
 
-    "select a problem on select" in {
-      val chat = scriptedChatContext(List("select", "2"))
+    "select a problem by ID" in {
+      val chat = scriptedChatContext(List("2"))
       val task = HumanProblemSelectionTask[IO](chat)
 
       task.execute(ProjectContextState()).asserting { result =>

@@ -24,7 +24,11 @@ final class UserRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
   private given MappedEncoding[UserId, UUID]        = MappedEncoding(_.value)
   private given MappedEncoding[UUID, UserId]        = MappedEncoding(UserId.apply)
   private given MappedEncoding[LlmProvider, String] = MappedEncoding(_.toString)
-  private given MappedEncoding[String, LlmProvider] = MappedEncoding(LlmProvider.valueOf)
+  private given MappedEncoding[String, LlmProvider] = MappedEncoding { s =>
+    LlmProvider.values
+      .find(_.toString == s)
+      .getOrElse(throw new IllegalArgumentException(s"Unknown LlmProvider in DB: '$s'. Valid values: ${LlmProvider.values.mkString(", ")}"))
+  }
 
   inline given SchemaMeta[UserRecord] = schemaMeta("users")
 

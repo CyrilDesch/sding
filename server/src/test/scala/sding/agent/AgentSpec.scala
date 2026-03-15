@@ -2,37 +2,65 @@ package sding.agent
 
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
+import cats.effect.testkit.TestControl
+import dev.langchain4j.exception.RateLimitException
+import dev.langchain4j.model.chat.request.json.JsonObjectSchema
 import io.circe.Decoder
 import io.circe.Encoder
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
 
-final case class TestOutput(answer: String) derives Decoder, Encoder.AsObject
+final case class TestOutput(answer: String) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 class AgentSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 
+  private val testPromptLink = PromptLink("TestPrompt", 1, "test-session")
+
   private def stubLlmClient(response: String): LlmClient[IO] = new LlmClient[IO]:
-    def chat(systemPrompt: String, userPrompt: String, jsonMode: Boolean): IO[String] =
-      IO.pure(response)
-    def chatWithTools(
+    def chatStructured(
         systemPrompt: String,
         userPrompt: String,
-        tools: List[LlmToolSpec]
-    ): IO[LlmToolResponse] =
-      IO.pure(LlmToolResponse.TextResponse(response))
+        outputSchema: JsonObjectSchema,
+        promptLink: PromptLink
+    ): IO[String] =
+      IO.pure(response)
+    def chatStep(
+        systemPrompt: String,
+        history: Vector[LlmMessage],
+        tools: List[LlmToolSpec],
+        promptLink: PromptLink
+    ): IO[(LlmToolResponse, Vector[LlmMessage])] =
+      IO.pure((LlmToolResponse.TextResponse(response), history :+ LlmMessage.AssistantText(response)))
+    def extractStructured(
+        systemPrompt: String,
+        history: Vector[LlmMessage],
+        outputSchema: JsonObjectSchema,
+        promptLink: PromptLink
+    ): IO[String] =
+      IO.pure(response)
 
   private def failingLlmClient(error: Throwable): LlmClient[IO] = new LlmClient[IO]:
-    def chat(systemPrompt: String, userPrompt: String, jsonMode: Boolean): IO[String] =
-      IO.raiseError(error)
-    def chatWithTools(
+    def chatStructured(
         systemPrompt: String,
         userPrompt: String,
-        tools: List[LlmToolSpec]
-    ): IO[LlmToolResponse] =
+        outputSchema: JsonObjectSchema,
+        promptLink: PromptLink
+    ): IO[String] =
       IO.raiseError(error)
-
-  private val noopQuota: QuotaManager[IO] = new QuotaManager[IO]:
-    def acquireSlot: IO[Unit] = IO.unit
+    def chatStep(
+        systemPrompt: String,
+        history: Vector[LlmMessage],
+        tools: List[LlmToolSpec],
+        promptLink: PromptLink
+    ): IO[(LlmToolResponse, Vector[LlmMessage])] =
+      IO.raiseError(error)
+    def extractStructured(
+        systemPrompt: String,
+        history: Vector[LlmMessage],
+        outputSchema: JsonObjectSchema,
+        promptLink: PromptLink
+    ): IO[String] =
+      IO.raiseError(error)
 
   private val validJson = """{"answer": "42"}"""
 
@@ -42,10 +70,9 @@ class AgentSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
       val agent = LiveAgent.make[IO](
         config = AgentConfig("test-agent", "TestPrompt", "model", 0.7, None),
         llmClient = stubLlmClient(validJson),
-        systemPrompt = "You are a test agent.",
-        quotaManager = noopQuota
+        systemPrompt = "You are a test agent."
       )
-      agent.call[TestOutput]("What is the answer?").map {
+      agent.call[TestOutput]("What is the answer?", testPromptLink).map {
         case AgentResult.Success(output, name) =>
           output.answer shouldBe "42"
           name shouldBe "test-agent"
@@ -58,10 +85,9 @@ class AgentSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
       val agent = LiveAgent.make[IO](
         config = AgentConfig("test-agent", "TestPrompt", "model", 0.7, None),
         llmClient = failingLlmClient(new RuntimeException("LLM down")),
-        systemPrompt = "You are a test agent.",
-        quotaManager = noopQuota
+        systemPrompt = "You are a test agent."
       )
-      agent.call[TestOutput]("What is the answer?").map {
+      agent.call[TestOutput]("What is the answer?", testPromptLink).map {
         case AgentResult.Failure(msg, name) =>
           msg should include("LLM down")
           name shouldBe "test-agent"
@@ -74,10 +100,9 @@ class AgentSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
       val agent = LiveAgent.make[IO](
         config = AgentConfig("test-agent", "TestPrompt", "model", 0.7, None),
         llmClient = stubLlmClient("not json at all"),
-        systemPrompt = "You are a test agent.",
-        quotaManager = noopQuota
+        systemPrompt = "You are a test agent."
       )
-      agent.call[TestOutput]("What is the answer?").map {
+      agent.call[TestOutput]("What is the answer?", testPromptLink).map {
         case AgentResult.Failure(msg, _) =>
           msg should not be empty
         case AgentResult.Success(_, _) =>
@@ -85,19 +110,87 @@ class AgentSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
       }
     }
 
-    "acquire quota slot before each call" in {
-      var acquired                        = false
-      val trackingQuota: QuotaManager[IO] = new QuotaManager[IO]:
-        def acquireSlot: IO[Unit] = IO { acquired = true }
+    "retry call on RateLimitException and succeed on next attempt" in {
+      IO.ref(0).flatMap { callCount =>
+        val client = new LlmClient[IO]:
+          def chatStructured(s: String, u: String, o: JsonObjectSchema, pl: PromptLink): IO[String] =
+            callCount.updateAndGet(_ + 1).flatMap {
+              case 1 => IO.raiseError(new RateLimitException("rate limit"))
+              case _ => IO.pure(validJson)
+            }
+          def chatStep(
+              s: String,
+              h: Vector[LlmMessage],
+              t: List[LlmToolSpec],
+              pl: PromptLink
+          ): IO[(LlmToolResponse, Vector[LlmMessage])] =
+            IO.pure((LlmToolResponse.TextResponse(""), h))
+          def extractStructured(s: String, h: Vector[LlmMessage], o: JsonObjectSchema, pl: PromptLink): IO[String] =
+            IO.pure(validJson)
 
+        val agent = LiveAgent.make[IO](
+          config = AgentConfig("test-agent", "TestPrompt", "model", 0.7, None),
+          llmClient = client,
+          systemPrompt = "You are a test agent."
+        )
+        TestControl.executeEmbed(
+          agent.call[TestOutput]("What is the answer?", testPromptLink).map {
+            case AgentResult.Success(output, _) =>
+              output.answer shouldBe "42"
+            case AgentResult.Failure(msg, _) =>
+              fail(s"Expected Success after retry, got Failure: $msg")
+          }
+        )
+      }
+    }
+
+    "return Failure with rate limit message after exhausting retries" in {
       val agent = LiveAgent.make[IO](
         config = AgentConfig("test-agent", "TestPrompt", "model", 0.7, None),
-        llmClient = stubLlmClient(validJson),
-        systemPrompt = "You are a test agent.",
-        quotaManager = trackingQuota
+        llmClient = failingLlmClient(new RateLimitException("rate limit")),
+        systemPrompt = "You are a test agent."
       )
-      agent.call[TestOutput]("prompt").map { _ =>
-        acquired shouldBe true
+      TestControl.executeEmbed(
+        agent.call[TestOutput]("What is the answer?", testPromptLink).map {
+          case AgentResult.Failure(msg, _) =>
+            msg should include("rate limit exceeded")
+          case AgentResult.Success(_, _) =>
+            fail("Expected Failure after exhausting retries")
+        }
+      )
+    }
+
+    "tooledCall retries chatStep on RateLimitException preserving history" in {
+      IO.ref(0).flatMap { chatStepCount =>
+        val client = new LlmClient[IO]:
+          def chatStructured(s: String, u: String, o: JsonObjectSchema, pl: PromptLink): IO[String] =
+            IO.pure(validJson)
+          def chatStep(
+              s: String,
+              h: Vector[LlmMessage],
+              t: List[LlmToolSpec],
+              pl: PromptLink
+          ): IO[(LlmToolResponse, Vector[LlmMessage])] =
+            chatStepCount.updateAndGet(_ + 1).flatMap {
+              case 1 => IO.raiseError(new RateLimitException("rate limit"))
+              case _ => IO.pure((LlmToolResponse.TextResponse("done"), h :+ LlmMessage.AssistantText("done")))
+            }
+          def extractStructured(s: String, h: Vector[LlmMessage], o: JsonObjectSchema, pl: PromptLink): IO[String] =
+            IO.pure(validJson)
+
+        val agent = LiveAgent.make[IO](
+          config = AgentConfig("test-agent", "TestPrompt", "model", 0.7, None),
+          llmClient = client,
+          systemPrompt = "You are a test agent."
+        )
+        TestControl.executeEmbed(
+          agent.tooledCall[TestOutput]("What is the answer?", Nil, 3, testPromptLink).map {
+            case AgentResult.Success(output, _) =>
+              output.answer shouldBe "42"
+            case AgentResult.Failure(msg, _) =>
+              fail(s"Expected Success after chatStep retry, got Failure: $msg")
+          }
+        )
       }
     }
   }

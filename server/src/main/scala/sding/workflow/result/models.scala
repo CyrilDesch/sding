@@ -2,6 +2,7 @@ package sding.workflow.result
 
 import io.circe.Decoder
 import io.circe.Encoder
+import sding.agent.JsonSchemaOf
 
 final case class ProjectRequirements(
     projectType: String,
@@ -10,10 +11,14 @@ final case class ProjectRequirements(
     projectDomain: Option[String] = None,
     projectPromiseStatement: Option[String] = None
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 
-final case class WeirdProblem(id: Int, statement: String, fullStatement: String) derives Decoder, Encoder.AsObject
-final case class WeirdProblems(problems: List[WeirdProblem]) derives Decoder, Encoder.AsObject
+final case class WeirdProblem(id: Int, statement: String, fullStatement: String)
+    derives Decoder,
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class WeirdProblems(problems: List[WeirdProblem]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class ReformulatedProblem(
     problemId: Int,
@@ -24,16 +29,22 @@ final case class ReformulatedProblem(
     impactMetric: String,
     jobToBeDone: String
 ) derives Decoder,
-      Encoder.AsObject
-final case class ReformulatedProblems(problems: List[ReformulatedProblem]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class ReformulatedProblems(problems: List[ReformulatedProblem])
+    derives Decoder,
+      Encoder.AsObject,
+      JsonSchemaOf
 
 final case class Page(title: String, hasComplaint: Boolean, complaintIntensity: Int, keySnippet: String)
     derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class ProblemTrend(problemId: Int, pages: List[Page], complaintCoverage: Int, evidenceStrength: String)
     derives Decoder,
-      Encoder.AsObject
-final case class ProblemsTrends(trends: List[ProblemTrend]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class ProblemsTrends(trends: List[ProblemTrend]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class EvidenceScore(
     evidenceStrengthScore: Int,
@@ -45,7 +56,8 @@ final case class EvidenceScore(
     marketExplanation: String,
     decisionInsight: String
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class ProblemScoreMatrix(
     problemId: Int,
     evidenceScore: EvidenceScore,
@@ -55,12 +67,14 @@ final case class ProblemScoreMatrix(
     evidenceStrength: String,
     keyInsights: List[String]
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class ProblemsSelectedResult(
     decisionMatrix: List[ProblemScoreMatrix],
     selectionGuidance: Option[String] = None
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 
 final case class Interview(
     keyQuotes: List[String],
@@ -68,8 +82,9 @@ final case class Interview(
     currentSolutions: List[String],
     willingnessToPay: Int
 ) derives Decoder,
-      Encoder.AsObject
-final case class UserInterviewResult(interviews: List[Interview]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class UserInterviewResult(interviews: List[Interview]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class EmpathyMap(
     personaDescription: String,
@@ -81,8 +96,9 @@ final case class EmpathyMap(
     desiredOutcomes: List[String],
     insights: List[String]
 ) derives Decoder,
-      Encoder.AsObject
-final case class EmpathyMapResult(empathyMap: EmpathyMap) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class EmpathyMapResult(empathyMap: EmpathyMap) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class JobToBeDone(
     id: Int,
@@ -91,8 +107,9 @@ final case class JobToBeDone(
     satisfactionToday: Int,
     archetypeLabel: String
 ) derives Decoder,
-      Encoder.AsObject
-final case class JTBDDefinitionResult(jobs: List[JobToBeDone]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class JTBDDefinitionResult(jobs: List[JobToBeDone]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class HMWQuestion(
     id: Int,
@@ -102,11 +119,15 @@ final case class HMWQuestion(
     viralLoopStrength: Int,
     jobsId: Int
 ) derives Decoder,
-      Encoder.AsObject
-final case class HMWTopResult(topQuestions: List[HMWQuestion]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class HMWTopResult(topQuestions: List[HMWQuestion]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
-final case class SketchVariant(hmwId: Int, sketchDescriptions: List[String]) derives Decoder, Encoder.AsObject
-final case class Crazy8sResult(variants: List[SketchVariant]) derives Decoder, Encoder.AsObject
+final case class SketchVariant(hmwId: Int, sketchDescriptions: List[String])
+    derives Decoder,
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class Crazy8sResult(variants: List[SketchVariant]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class ScamperVariant(
     id: Int,
@@ -120,8 +141,9 @@ final case class ScamperVariant(
     reverse: String,
     feasibilityScore: Int
 ) derives Decoder,
-      Encoder.AsObject
-final case class ScamperResult(scamperVariants: List[ScamperVariant]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class ScamperResult(scamperVariants: List[ScamperVariant]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class CompetitiveAnalysisEntry(
     scamperId: Int,
@@ -131,16 +153,19 @@ final case class CompetitiveAnalysisEntry(
     opportunity: List[String],
     advantageScore: Int
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class CompetitiveAnalysisResult(vpCompetitiveAnalysis: List[CompetitiveAnalysisEntry])
     derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 
 final case class StoryboardStep(stepNumber: Int, description: String, justification: String)
     derives Decoder,
-      Encoder.AsObject
-final case class Storyboard(scamperId: Int, steps: List[StoryboardStep]) derives Decoder, Encoder.AsObject
-final case class PrototypeBuildResult(storyboards: List[Storyboard]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class Storyboard(scamperId: Int, steps: List[StoryboardStep]) derives Decoder, Encoder.AsObject, JsonSchemaOf
+final case class PrototypeBuildResult(storyboards: List[Storyboard]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class StructuredFeedback(
     usabilityHurdle: String,
@@ -149,7 +174,8 @@ final case class StructuredFeedback(
     forWhatCanPay: String,
     forWhatCanRecommend: String
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class UserTest(
     variantGlobalId: Int,
     initialReaction: String,
@@ -161,15 +187,20 @@ final case class UserTest(
     verbatimQuote: String,
     feedback: StructuredFeedback
 ) derives Decoder,
-      Encoder.AsObject
-final case class UserTestsResult(userTests: List[UserTest]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class UserTestsResult(userTests: List[UserTest]) derives Decoder, Encoder.AsObject, JsonSchemaOf
 
 final case class FiveWs(who: String, what: String, why: String, where: String, when: String)
     derives Decoder,
-      Encoder.AsObject
-final case class Chip(text: String, explanation: String) derives Decoder, Encoder.AsObject
-final case class Metric(value: String, label: String) derives Decoder, Encoder.AsObject
-final case class MVPFeature(name: String, description: String, priority: String) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class Chip(text: String, explanation: String) derives Decoder, Encoder.AsObject, JsonSchemaOf
+final case class Metric(value: String, label: String) derives Decoder, Encoder.AsObject, JsonSchemaOf
+final case class MVPFeature(name: String, description: String, priority: String)
+    derives Decoder,
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class ProjectCardSchema(
     scamperId: Int,
     fiveWs: FiveWs,
@@ -182,8 +213,12 @@ final case class ProjectCardSchema(
     marketChips: List[Chip],
     socialProofQuote: String
 ) derives Decoder,
-      Encoder.AsObject
-final case class SynthetizeProjectsResult(projectsCards: List[ProjectCardSchema]) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class SynthetizeProjectsResult(projectsCards: List[ProjectCardSchema])
+    derives Decoder,
+      Encoder.AsObject,
+      JsonSchemaOf
 
 final case class ProblemContext(
     problemStatement: String,
@@ -192,7 +227,8 @@ final case class ProblemContext(
     problemScope: String,
     problemUrgency: String
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class MarketContext(
     marketTrends: List[String],
     technologyEnablers: List[String],
@@ -200,7 +236,8 @@ final case class MarketContext(
     marketOpportunitySize: String,
     timingRationale: String
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class StrategicRationale(
     businessAlignment: String,
     uniqueValueProposition: String,
@@ -208,7 +245,8 @@ final case class StrategicRationale(
     strategicImportance: String,
     successMetrics: List[String]
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class ValidationEvidence(
     userResearchInsights: List[String],
     marketValidation: List[String],
@@ -216,7 +254,8 @@ final case class ValidationEvidence(
     competitiveAnalysisFindings: List[String],
     riskMitigation: List[String]
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class ExecutionReadiness(
     teamCapabilities: List[String],
     resourceRequirements: String,
@@ -224,14 +263,16 @@ final case class ExecutionReadiness(
     goToMarketStrategy: String,
     nextSteps: List[String]
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class AlternativeExploration(
     problemsConsidered: List[String],
     selectionRationale: String,
     solutionVariants: List[String],
     keyDecisionPoints: List[String]
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class SelectedProjectDetails(
     projectTitle: String,
     coreValueProposition: String,
@@ -240,7 +281,8 @@ final case class SelectedProjectDetails(
     successMetrics: List[String],
     implementationPriority: String
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class PremiumReportSchema(
     executiveSummary: String,
     problemContext: ProblemContext,
@@ -255,18 +297,22 @@ final case class PremiumReportSchema(
     recommendation: String,
     confidenceLevel: String
 ) derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 final case class PremiumReportResult(premiumReport: PremiumReportSchema, reportMetadata: Map[String, String])
     derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 
 final case class MarkdownGenerationResult(markdownContent: String, reportTitle: String)
     derives Decoder,
-      Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
 
-final case class HumanGateResult(selectedProblemId: Int) derives Decoder, Encoder.AsObject
-final case class HumanJTBDSelectionResult(selectedJtbdId: Int) derives Decoder, Encoder.AsObject
+final case class HumanGateResult(selectedProblemId: Int) derives Decoder, Encoder.AsObject, JsonSchemaOf
+final case class HumanJTBDSelectionResult(selectedJtbdId: Int) derives Decoder, Encoder.AsObject, JsonSchemaOf
 final case class HumanComprehensiveSelectionResult(selectedVariantId: Option[Int] = None)
     derives Decoder,
-      Encoder.AsObject
-final case class HumanProjectSelectionResult(selectedProjectId: Int) derives Decoder, Encoder.AsObject
+      Encoder.AsObject,
+      JsonSchemaOf
+final case class HumanProjectSelectionResult(selectedProjectId: Int) derives Decoder, Encoder.AsObject, JsonSchemaOf

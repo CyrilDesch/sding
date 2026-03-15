@@ -66,10 +66,10 @@ class AppConfigSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
       }
     }
 
-    "fail when a required env var (POSTGRES_DATABASE) is missing" in {
+    "use default sding database when POSTGRES_DATABASE is not set" in {
       val incomplete = requiredEnv - "POSTGRES_DATABASE"
-      AppConfig.loadFrom(incomplete).attempt.map { result =>
-        result.isLeft shouldBe true
+      AppConfig.loadFrom(incomplete).map { config =>
+        config.postgres.database shouldBe "sding"
       }
     }
 

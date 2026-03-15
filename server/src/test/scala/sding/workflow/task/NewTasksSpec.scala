@@ -8,31 +8,40 @@ import org.scalatest.wordspec.AsyncWordSpec
 import sding.agent.*
 import sding.workflow.io.ChatContext
 import sding.workflow.io.MessageFormat
+import sding.workflow.io.UserInputRequest
 import sding.workflow.result.*
 import sding.workflow.state.ProjectContextState
 
 class NewTasksSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 
   private def stubAgent(response: String): Agent[IO] = new Agent[IO]:
-    val name                                                 = "test-agent"
-    def call[A: Decoder](prompt: String): IO[AgentResult[A]] =
+    val name                                                                                 = "test-agent"
+    def call[A: Decoder: JsonSchemaOf](prompt: String, promptLink: PromptLink): IO[AgentResult[A]] =
       IO {
         io.circe.parser.decode[A](response) match
           case Right(v) => AgentResult.Success(v, name)
           case Left(e)  => AgentResult.Failure(e.getMessage, name)
       }
-    def tooledCall[A: Decoder](prompt: String, tools: List[AgentTool[IO]], maxToolCalls: Int): IO[AgentResult[A]] =
-      call(prompt)
+    def tooledCall[A: Decoder: JsonSchemaOf](
+        prompt: String,
+        tools: List[AgentTool[IO]],
+        maxToolCalls: Int,
+        promptLink: PromptLink
+    ): IO[AgentResult[A]] =
+      call(prompt, promptLink)
 
   private def stubPromptLoader: PromptLoader[IO] = new PromptLoader[IO]:
     def loadSystemPrompt(name: String): IO[String]       = IO.pure("system prompt")
     def loadTaskPrompt(name: String): IO[PromptTemplate] =
-      IO.pure(PromptTemplate(name, "Task: {{ project_requirements }}"))
+      IO.pure(PromptTemplate(name, "Task: {{ project_requirements }}", version = 1))
 
   private val chatCtx: ChatContext[IO] = new ChatContext[IO]:
-    def sendMessage(message: String, format: MessageFormat): IO[Unit]           = IO.unit
-    def sendState(message: String): IO[Unit]                                    = IO.unit
-    def requestInput(prompt: String, options: Option[List[String]]): IO[String] = IO.pure("test-input")
+    def sessionId: String                                              = "test-session"
+    def sendMessage(message: String, format: MessageFormat): IO[Unit] = IO.unit
+    def sendState(message: String): IO[Unit]                          = IO.unit
+    def requestInput(request: UserInputRequest): IO[String]           = IO.pure("test-input")
+    def requestSelection(title: String, items: List[sding.protocol.SelectionItem], allowRetry: Boolean): IO[String] =
+      IO.pure("test-input")
 
   private val stubSearchTool: AgentTool[IO] = WebSearchTool.stub[IO]
 
@@ -142,8 +151,8 @@ class NewTasksSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 
       var callCount  = 0
       val multiAgent = new Agent[IO]:
-        val name                                                 = "multi-agent"
-        def call[A: Decoder](prompt: String): IO[AgentResult[A]] =
+        val name                                                                                 = "multi-agent"
+        def call[A: Decoder: JsonSchemaOf](prompt: String, promptLink: PromptLink): IO[AgentResult[A]] =
           IO {
             callCount += 1
             val json = callCount % 3 match
@@ -154,8 +163,13 @@ class NewTasksSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
               case Right(v) => AgentResult.Success(v, name)
               case Left(e)  => AgentResult.Failure(e.getMessage, name)
           }
-        def tooledCall[A: Decoder](prompt: String, tools: List[AgentTool[IO]], maxToolCalls: Int): IO[AgentResult[A]] =
-          call(prompt)
+        def tooledCall[A: Decoder: JsonSchemaOf](
+            prompt: String,
+            tools: List[AgentTool[IO]],
+            maxToolCalls: Int,
+            promptLink: PromptLink
+        ): IO[AgentResult[A]] =
+          call(prompt, promptLink)
 
       val stateWithScamper = baseState.copy(
         scamperResult = Some(
