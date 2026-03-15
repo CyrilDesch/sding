@@ -77,8 +77,7 @@ object HttpClient:
           headers = authHeaders
         }
       )
-      .flatMap(_.text().toFuture)
-      .map(t => decode[CreateChatResponse](t).toTry.get)
+      .flatMap(handleResponse[CreateChatResponse])
 
   def submitInput(chatId: String, input: String): Future[Unit] =
     val json = SubmitInputRequest(input).asJson.noSpaces
