@@ -1,6 +1,7 @@
 package sding.domain
 
 import scala.util.control.NoStackTrace
+import sding.protocol.WorkflowStep
 
 sealed trait AppError extends NoStackTrace:
   def message: String
@@ -44,10 +45,12 @@ object AppError:
 
   sealed trait AgentError extends AppError
   object AgentError:
-    final case class LlmInvocationFailed(agent: String, cause: String) extends AgentError:
-      val message: String = s"LLM invocation error in $agent: $cause"
-    final case class StructuredOutputFailed(agent: String, cause: String) extends AgentError:
-      val message: String = s"Structured output parsing failed in $agent: $cause"
+    final case class LlmInvocationFailed(step: WorkflowStep, cause: String) extends AgentError:
+      val message: String = s"Step '${step.friendlyName}' failed: $cause"
+    final case class StructuredOutputFailed(step: WorkflowStep, cause: String) extends AgentError:
+      val message: String = s"Structured output parsing failed in ${step.friendlyName}: $cause"
+    final case class PromptLoadFailed(name: String, cause: String) extends AgentError:
+      val message: String = s"Prompt '$name' failed: $cause"
     final case class QuotaExhausted(message: String) extends AgentError
 
   sealed trait RepositoryError extends AppError

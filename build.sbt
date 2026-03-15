@@ -1,5 +1,4 @@
 import com.typesafe.sbt.packager.docker.ExecCmd
-import org.scalajs.linker.interface.ModuleKind
 
 ThisBuild / scalaVersion  := "3.8.2"
 ThisBuild / versionScheme := Some("semver-spec")
@@ -27,24 +26,10 @@ val scalatestVersion   = "3.2.19"
 val langgraph4jVersion = "1.8.9"
 val langchain4jVersion = "1.12.2"
 
-// ─── shared (cross JVM + JS) ────────────────────────────────────────────────
-lazy val shared = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Pure)
-  .in(file("shared"))
-  .settings(
-    name := "sding-shared",
-    libraryDependencies ++= Seq(
-      "io.circe"      %%% "circe-generic" % circeVersion,
-      "io.circe"      %%% "circe-parser"  % circeVersion,
-      "org.scalatest" %%% "scalatest"     % scalatestVersion % Test
-    )
-  )
-
 // ─── server (JVM) ───────────────────────────────────────────────────────────
 lazy val server = (project in file("server"))
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(JavaServerAppPackaging, DockerPlugin)
-  .dependsOn(shared.jvm)
   .settings(
     name                             := "sding",
     description                      := "sding",
@@ -64,6 +49,7 @@ lazy val server = (project in file("server"))
     },
     buildInfoKeys            := Seq[BuildInfoKey](name, version),
     buildInfoPackage         := "sding",
+    Compile / mainClass      := Some("sding.Main"),
     Test / parallelExecution := true,
     Test / fork              := true,
     Test / javaOptions ++= Seq("-Xms512m", "-Xmx2g", "-XX:+AlwaysPreTouch"),
@@ -89,6 +75,8 @@ lazy val server = (project in file("server"))
       "org.http4s"           %% "http4s-dsl"                    % http4sVersion,
       "org.http4s"           %% "http4s-ember-client"           % http4sVersion,
       "org.http4s"           %% "http4s-ember-server"           % http4sVersion,
+      "io.circe"             %% "circe-generic"                 % circeVersion,
+      "io.circe"             %% "circe-parser"                  % circeVersion,
       "io.circe"             %% "circe-literal"                 % circeVersion,
       "org.http4s"           %% "http4s-circe"                  % http4sVersion,
       "is.cir"               %% "ciris"                         % "3.12.0",
@@ -111,50 +99,19 @@ lazy val server = (project in file("server"))
       "dev.langchain4j"       % "langchain4j-anthropic"         % langchain4jVersion,
       "org.snakeyaml"         % "snakeyaml-engine"              % "3.0.1",
       "io.getquill"          %% "quill-jdbc"                    % "4.8.6",
-      "org.flywaydb"          % "flyway-core"                   % "11.3.4",
-      "org.flywaydb"          % "flyway-database-postgresql"    % "11.3.4",
+      "org.flywaydb"          % "flyway-core"                   % "12.1.0",
+      "org.flywaydb"          % "flyway-database-postgresql"    % "12.1.0",
       "org.postgresql"        % "postgresql"                    % "42.7.10",
       "com.github.jwt-scala" %% "jwt-circe"                     % "11.0.3",
       "at.favre.lib"          % "bcrypt"                        % "0.10.2"
     )
   )
 
-// ─── client (Scala.js) ─────────────────────────────────────────────────────
-lazy val client = (project in file("client"))
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(shared.js)
-  .settings(
-    name                            := "sding-client",
-    scalaJSUseMainModuleInitializer := true,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    libraryDependencies ++= Seq(
-      "com.raquo"     %%% "laminar"     % "17.2.1",
-      "org.scala-js"  %%% "scalajs-dom" % "2.8.1",
-      "org.scalatest" %%% "scalatest"   % scalatestVersion % Test
-    )
-  )
-
-// ─── frontend bundle task ───────────────────────────────────────────────────
-lazy val bundleFrontend = taskKey[Unit]("Build optimized frontend JS and copy to server resources")
-
 // ─── root aggregator ────────────────────────────────────────────────────────
 lazy val root = (project in file("."))
-  .aggregate(shared.jvm, shared.js, server, client)
+  .aggregate(server)
   .settings(
     name         := "sding-root",
     publish      := {},
-    publishLocal := {},
-    bundleFrontend := {
-      val log = streams.value.log
-      log.info("Building optimized frontend JS...")
-      val linkResult = (client / Compile / fullLinkJS).value
-      val jsDir      = linkResult.data.publicModules.head.jsFileName
-      val sourceDir  = (client / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value
-      val targetDir  = (server / Compile / resourceDirectory).value / "static"
-      IO.createDirectory(targetDir)
-      IO.copyDirectory(sourceDir, targetDir)
-      val indexHtml = (client / baseDirectory).value / "index.html"
-      if (indexHtml.exists()) IO.copyFile(indexHtml, targetDir / "index.html")
-      log.info(s"Frontend bundle copied to $targetDir")
-    }
+    publishLocal := {}
   )

@@ -6,7 +6,9 @@ import sding.agent.Agent
 import sding.agent.AgentResult
 import sding.agent.AgentTool
 import sding.agent.PromptLoader
+import sding.protocol.WorkflowStep
 import sding.workflow.io.ChatContext
+import sding.workflow.io.UserInputRequest.*
 import sding.workflow.result.*
 import sding.workflow.state.ProjectContextState
 
@@ -15,7 +17,7 @@ final class WeirdProblemGenerationTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "weird_problem_generation"
+  val name       = WorkflowStep.WeirdProblemGeneration
   val promptName = "WeirdProblemGenerationTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -38,7 +40,7 @@ final class ProblemReformulationTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "problem_reformulation"
+  val name       = WorkflowStep.ProblemReformulation
   val promptName = "ProblemReformulationTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -62,7 +64,7 @@ final class EmpathyMapTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "empathy_map"
+  val name       = WorkflowStep.EmpathyMap
   val promptName = "EmpathyMapTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -84,7 +86,7 @@ final class JTBDDefinitionTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "jtbd_definition"
+  val name       = WorkflowStep.JtbdDefinition
   val promptName = "JTBDDefinitionTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -107,7 +109,7 @@ final class HMWTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "hmw"
+  val name       = WorkflowStep.Hmw
   val promptName = "HMWTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -131,7 +133,7 @@ final class Crazy8sTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "crazy8s"
+  val name       = WorkflowStep.Crazy8s
   val promptName = "Crazy8sTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -154,7 +156,7 @@ final class ScamperTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "scamper"
+  val name       = WorkflowStep.Scamper
   val promptName = "ScamperTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -178,7 +180,7 @@ final class PremiumReportTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends AgentTaskNode[F](agent, promptLoader, chatContext):
-  val name       = "premium_report"
+  val name       = WorkflowStep.PremiumReport
   val promptName = "PremiumReportTask"
 
   def templateVars(state: ProjectContextState): Map[String, String] =
@@ -202,7 +204,7 @@ final class TrendAnalysisTask[F[_]: Async](
     chatContext: ChatContext[F],
     searchTool: AgentTool[F]
 ) extends TaskNode[F]:
-  val name = "trend_analysis"
+  val name = WorkflowStep.TrendAnalysis
 
   def execute(state: ProjectContextState): F[ProjectContextState] =
     val problems = state.reformulatedProblems.map(_.problems).getOrElse(Nil)
@@ -213,14 +215,15 @@ final class TrendAnalysisTask[F[_]: Async](
         "project_requirements" -> state.projectRequirements.map(_.toString).getOrElse(""),
         "project_language"     -> state.projectLanguage.getOrElse("English")
       )
-      trends <- problems.traverse { problem =>
+      trends <- problems.zipWithIndex.traverse { case (problem, idx) =>
         val vars   = baseVars ++ Map("problem" -> problem.toString)
         val prompt = pt.render(vars)
-        agent.tooledCall[ProblemTrend](prompt, List(searchTool), 3).flatMap {
-          case AgentResult.Success(v, _) => Async[F].pure(v)
-          case AgentResult.Failure(m, _) =>
-            Async[F].raiseError(sding.domain.AppError.AgentError.LlmInvocationFailed(name, m))
-        }
+        Async[F].delay(scribe.info(s"[TrendAnalysis] problem ${idx + 1}/${problems.length}: ${problem.problemId}")) *>
+          agent.tooledCall[ProblemTrend](prompt, List(searchTool), 3).flatMap {
+            case AgentResult.Success(v, _) => Async[F].pure(v.copy(problemId = problem.problemId))
+            case AgentResult.Failure(m, _) =>
+              Async[F].raiseError(sding.domain.AppError.AgentError.LlmInvocationFailed(name, m))
+          }
       }
       (nextState, _) = state.incrementIteration(name)
     yield nextState.copy(problemTrends = Some(ProblemsTrends(trends)))
@@ -228,7 +231,7 @@ final class TrendAnalysisTask[F[_]: Async](
 final class ProblemSelectionTask[F[_]: Async](
     chatContext: ChatContext[F]
 ) extends TaskNode[F]:
-  val name = "problem_selection"
+  val name = WorkflowStep.ProblemSelection
 
   def execute(state: ProjectContextState): F[ProjectContextState] =
     chatContext.sendState("Scoring and ranking problems...") *> Async[F].delay {
@@ -280,7 +283,7 @@ final class CompetitiveAnalysisTask[F[_]: Async](
     chatContext: ChatContext[F],
     searchTool: AgentTool[F]
 ) extends TaskNode[F]:
-  val name = "competitive_analysis"
+  val name = WorkflowStep.CompetitiveAnalysis
 
   def execute(state: ProjectContextState): F[ProjectContextState] =
     val variants = state.scamperResult.map(_.scamperVariants).getOrElse(Nil)
@@ -307,17 +310,16 @@ final class CompetitiveAnalysisTask[F[_]: Async](
 final class HumanRequirementsTask[F[_]: Async](
     chatContext: ChatContext[F]
 ) extends TaskNode[F]:
-  val name = "human_requirements"
+  val name = WorkflowStep.HumanRequirements
 
   def execute(state: ProjectContextState): F[ProjectContextState] =
     for
       _            <- chatContext.sendMessage("Please provide your project requirements.")
-      projectType  <- chatContext.requestInput("Market type?", Some(List("B2B", "B2C", "C2C", "C2B")))
+      projectType  <- chatContext.requestInput(Choice("Market type?", List("B2B", "B2C", "C2C", "C2B")))
       softwareType <- chatContext.requestInput(
-        "Software type?",
-        Some(List("Web SaaS", "Software", "Mobile App", "Hardware", "Other"))
+        Choice("Software type?", List("Web SaaS", "Software", "Mobile App", "Hardware", "Other"))
       )
-      problem <- chatContext.requestInput("Describe the problem you want to solve:")
+      problem <- chatContext.requestInput(FreeText("Describe the problem you want to solve:"))
     yield state.copy(
       projectRequirements = Some(
         ProjectRequirements(
@@ -329,7 +331,7 @@ final class HumanRequirementsTask[F[_]: Async](
     )
 
 final class MarkdownGenerationTask[F[_]: Async]() extends TaskNode[F]:
-  val name = "markdown_generation"
+  val name = WorkflowStep.MarkdownGeneration
 
   def execute(state: ProjectContextState): F[ProjectContextState] =
     Async[F].pure {

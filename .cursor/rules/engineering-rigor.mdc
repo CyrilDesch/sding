@@ -1,4 +1,5 @@
 ---
+description: Engineering rigor rules — solve root causes, TDD, no Docker commands, goal-driven execution
 alwaysApply: true
 ---
 # Engineering Rigor Rules
@@ -22,6 +23,10 @@ Transform vague tasks into verifiable goals:
 For multi-step tasks: `1. [Step] → verify: [check]`
 
 **Strong success criteria → iterate autonomously. Weak/ambiguous → ask for clarification.**
+
+## Environment Constraints
+
+- **No Docker commands** — I cannot run `docker` or `docker compose`. The user runs `mise run dev-docker` manually. Always assume infra is already up; never attempt to start it. Otherwise, ask the user to run commands.
 
 ## Anti-patterns
 ❌ "The simplest fix..." / "Pragmatically speaking..." / "From a different angle..." (dodging)

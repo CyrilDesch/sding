@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import io.circe.Decoder
 import sding.agent.Agent
 import sding.agent.AgentResult
+import sding.agent.JsonSchemaOf
 import sding.agent.PromptLoader
 import sding.workflow.io.ChatContext
 import sding.workflow.state.ProjectContextState
@@ -19,9 +20,9 @@ abstract class AgentTaskNode[F[_]: Async](
   protected def templateVars(state: ProjectContextState): Map[String, String]
   protected def updateState[A](state: ProjectContextState, result: A): ProjectContextState
 
-  protected def runAgent[A: Decoder](state: ProjectContextState): F[ProjectContextState] =
+  protected def runAgent[A: Decoder: JsonSchemaOf](state: ProjectContextState): F[ProjectContextState] =
     for
-      _  <- chatContext.sendState(s"Running $name...")
+      _  <- chatContext.sendState(s"Running ${name.friendlyName}...")
       pt <- promptLoader.loadTaskPrompt(promptName)
       vars            = templateVars(state)
       formattedPrompt = pt.render(vars)

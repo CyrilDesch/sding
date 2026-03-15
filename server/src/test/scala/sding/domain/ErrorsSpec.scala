@@ -3,6 +3,7 @@ package sding.domain
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scala.util.control.NoStackTrace
+import sding.protocol.WorkflowStep
 
 class ErrorsSpec extends AnyWordSpec with Matchers:
 
@@ -65,9 +66,14 @@ class ErrorsSpec extends AnyWordSpec with Matchers:
   }
 
   "AgentError" should {
-    "format LLM invocation failure with agent name" in {
-      val err = AppError.AgentError.LlmInvocationFailed("ProductStrategist", "rate limited")
-      err.message shouldBe "LLM invocation error in ProductStrategist: rate limited"
+    "format LLM invocation failure with step" in {
+      val err = AppError.AgentError.LlmInvocationFailed(WorkflowStep.WeirdProblemGeneration, "rate limited")
+      err.message shouldBe "Step 'Problem Discovery' failed: rate limited"
+    }
+
+    "format prompt load failure" in {
+      val err = AppError.AgentError.PromptLoadFailed("my_prompt", "not found in yaml")
+      err.message shouldBe "Prompt 'my_prompt' failed: not found in yaml"
     }
   }
 

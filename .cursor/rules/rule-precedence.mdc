@@ -1,4 +1,5 @@
 ---
+description: Rule precedence order when rules overlap
 alwaysApply: true
 ---
 # Rule Precedence
@@ -7,6 +8,6 @@ When rules overlap, apply this precedence (highest first):
 
 1. Explicit user instruction in the current session.
 2. Safety/integrity rules (`engineering-rigor`).
-3. Task completion gates (`completion-gates`, compile/format/test verification).
+3. Task completion gates (compile/format/test verification).
 4. Domain style rules (`scala3`, `cats-effect`).
 5. Operational convenience rules.

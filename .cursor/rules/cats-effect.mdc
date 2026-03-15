@@ -1,5 +1,6 @@
 ---
-description: Cats Effect 3 — Resource lifecycle, for-comprehension style, concurrency, testing; use when editing CE modules
+description: Cats Effect best practices for tagless final, Resource management, Ref, error handling, and concurrency patterns
+globs: **/*.scala
 alwaysApply: false
 ---
 # Cats Effect Best Practices
@@ -53,8 +54,6 @@ def checkout[F[_]](userId: UserId, card: Card)(using
 
 ### Keep algebras free of unnecessary constraints
 
-Typeclass constraints belong in interpreters and programs. The algebra is just the DSL:
-
 ```scala
 // ✅ Correct - no constraints on algebra
 trait Orders[F[_]]:
@@ -69,46 +68,13 @@ trait Orders[F[_]: Async]:
 
 **ALWAYS** use `Resource` for lifecycle management. Never manually manage open/close.
 
-```scala
-// ✅ Correct - Resource handles lifecycle
-def client: Resource[F, HttpClient[F]] =
-  Resource.make(HttpClient.create[F])(_.close)
-
-// Use with .use or compose with other Resources
-client.use { c => c.get(url) }
-
-// ✅ Compose resources
-(clientResource, configResource).tupled.use { case (client, config) =>
-  // Both released in reverse order
-}
-
-// ❌ Wrong - manual lifecycle
-val client = HttpClient.create.unsafeRunSync()
-try { ... } finally { client.close() }
-```
-
-## Resource Patterns
-
-### Resource.make vs Resource.eval
-
 | Pattern | Use when |
 |---------|----------|
 | `Resource.make(acquire)(release)` | Need cleanup on finalization |
 | `Resource.eval(fa)` | No cleanup needed, just lift F[A] |
 | `Resource.onFinalize(cleanup)` | Add cleanup without acquisition |
 
-```scala
-// Cleanup on shutdown
-Resource.onFinalize(Logger[F].info("Shutting down"))
-
-// No cleanup needed
-Resource.eval(Ref.of[F, State](initial))
-```
-
-
 ## For-Comprehension Style
-
-### Align `<-` arrows for readability
 
 ```scala
 // ✅ Correct - aligned arrows
@@ -118,337 +84,61 @@ for
   result  <- client.fetch(url)
   _       <- Logger[F].info(s"Fetched: $result")
 yield result
-
-// ❌ Wrong - unaligned
-for
-  config <- loadConfig
-  client <- createClient(config)
-  result <- client.fetch(url)
-yield result
 ```
 
-### Pattern match directly in `<-`
-
-```scala
-// ✅ Correct - direct pattern match
-for
-  (start, end) <- timer.bracket
-  Some(value)  <- cache.get(key)
-yield value
-
-// ❌ Wrong - intermediate binding
-for
-  tuple <- timer.bracket
-  (start, end) = tuple
-yield ...
-```
+Pattern match directly in `<-` — no intermediate binding needed.
 
 ## Background Fibers with Supervisor
 
-**ALWAYS** use `Supervisor` for background work, never raw `.start`:
-
-```scala
-// ✅ Correct - Supervisor manages fiber lifecycle
-Supervisor[F].use { supervisor =>
-  for
-    _ <- supervisor.supervise(renewalLoop.compile.drain)
-    _ <- supervisor.supervise(acquisitionLoop.compile.drain)
-    _ <- mainLogic
-  yield ()
-}
-
-// ❌ Wrong - orphan fibers
-for
-  fiber <- backgroundTask.start  // Fiber might leak!
-  _     <- mainLogic
-yield ()
-```
+**ALWAYS** use `Supervisor` for background work, never raw `.start`.
 
 ## Ref and State
 
-### Ref.modify for atomic updates
-
-```scala
-// ✅ Correct - atomic read-modify-write
-stateRef.modify { current =>
-  val next = current + 1
-  (next, s"Updated to $next")  // (newState, returnValue)
-}
-
-// ✅ Correct - update without return value
-stateRef.update(_ + 1)
-
-// ❌ Wrong - race condition
-for
-  current <- stateRef.get
-  _       <- stateRef.set(current + 1)  // Another fiber might have modified!
-yield ()
-```
-
-
-## Error Handling
-
-### Default to `F[A]` + `MonadThrow`
-
-Use `F[A]` with `MonadThrow` for most runtime errors. Only use `F[Either[E, A]]` in the return type when callers **must** branch on the error value. Ask: "what will the caller actually do with this error?" If they just propagate it, keep `F[A]`.
-
-```scala
-// ✅ Correct - callers can't meaningfully branch, so use F[A]
-def fetchUser(id: UserId): F[User]
-
-// ✅ Correct - callers must distinguish checkout failures, so type them
-def checkout(userId: UserId): F[Either[CheckoutError, OrderId]]
-
-// ❌ Wrong - wrapping everything in Either without reason
-def fetchUser(id: UserId): F[Either[Throwable, User]]
-```
-
-### Custom domain errors: extend `NoStackTrace`
-
-Custom ADT-style errors should extend `NoStackTrace`. Stack traces are expensive and useless for controlled business failures:
-
-```scala
-// ✅ Correct
-sealed trait CheckoutError extends NoStackTrace
-object CheckoutError:
-  case object EmptyCart             extends CheckoutError
-  case class PaymentFailed(msg: String) extends CheckoutError
-
-// ❌ Wrong - heavy JVM exception for a business condition
-class EmptyCartException extends RuntimeException("Cart is empty")
-```
-
-### handleErrorWith for recovery
-
-```scala
-// ✅ Correct - typed recovery, re-raise unexpected errors
-lease.tryAcquire(holder).handleErrorWith {
-  case e: ConflictException =>
-    Logger[F].debug(s"Conflict: ${e.getMessage}").as(false)
-  case e =>
-    MonadThrow[F].raiseError(e)
-}
-
-// ❌ Wrong - swallowing all errors
-lease.tryAcquire(holder).handleError(_ => false)
-```
-
-### `.attempt.void` for non-critical paths
-
-If a failure is genuinely non-critical (e.g. cleanup after a payment has already succeeded), explicitly swallow it and document why:
-
-```scala
-// ✅ Non-critical: cart deletion failure must not block the response
-cart.delete(userId).attempt.void
-```
-
-### Validate at the edge, accumulate errors with `ValidatedNel`
-
-For user-facing input (HTTP request bodies, query params), validate at the boundary. When multiple fields can fail simultaneously, accumulate with `ValidatedNel` rather than failing fast with `Either`:
-
-```scala
-import cats.data.{ValidatedNel, NonEmptyList}
-import cats.syntax.all.*
-
-// ✅ Accumulate all validation failures in one pass
-(validateName(raw.name), validateEmail(raw.email)).mapN(CreateUserRequest.apply)
-// Returns Invalid(NonEmptyList("name too short", "invalid email")) if both fail
-
-// ❌ Wrong for multi-field validation - fails on first error only
-for
-  name  <- validateName(raw.name)
-  email <- validateEmail(raw.email)
-yield CreateUserRequest(name, email)
-```
-
-Use `Either` / `MonadThrow` for sequential workflows where failure at one step makes subsequent steps meaningless.
-
-### Retry transient failures with explicit policy
-
-Use a typed retry policy (e.g. `cats-retry`) for transient infrastructure errors. After the policy is exhausted, remap to a domain error with `adaptError`:
-
-```scala
-// ✅ Policy-based retry with domain error on final failure
-retryingOnAllErrors(policy, logRetry)(callPaymentApi(card))
-  .adaptError { case e => PaymentError(e.getMessage) }
-```
-
-At HTTP boundaries: never expose internals that reveal system state; map domain errors to status codes in the route handler, not in business logic.
-
-## Parallel Execution
-
-### parTraverse for bounded parallelism
-
-```scala
-// ✅ Correct - parallel with same effect type
-items.parTraverse(process)  // List[A] => F[List[B]]
-
-// ✅ Correct - parallel for side effects only
-items.parTraverse_(log)  // Discards results
-
-// ❌ Wrong - sequential when parallel is safe
-items.traverse(process)  // Sequential, one at a time
-```
-
-### parTupled for independent effects
-
-```scala
-// ✅ Correct - run in parallel, combine results
-(fetchUser(id), fetchOrders(id), fetchPrefs(id)).parTupled
-```
-
-## Stream Patterns (fs2)
-
-### Use Stream for unbounded sequences
-
-```scala
-// ✅ Correct - periodic execution
-Stream
-  .awakeEvery[F](config.renewInterval)
-  .evalMap(_ => renewLeases)
-  .compile
-  .drain
-
-// ✅ Correct - bounded take
-stream.take(10).compile.toList
-
-// ✅ Correct - with timeout
-stream.timeout(30.seconds).compile.toList
-```
-
-
-## Clock and Time
-
-### Use Clock[F] for testability
-
-```scala
-// ✅ Correct - injectable clock
-def isExpired(using Clock[F]): F[Boolean] =
-  Clock[F].realTimeInstant.map { now =>
-    now.isAfter(expiry)
-  }
-
-// ❌ Wrong - hard to test
-def isExpired: F[Boolean] =
-  IO(java.time.Instant.now()).map(_.isAfter(expiry))
-```
-
-## Logging
-
-### Use Logger[F] from log4cats
-
-```scala
-Logger[F].info(s"Processing $item") *> process(item)
-Logger[F].warn(s"Retry $attempt of $maxRetries: ${error.getMessage}")
-// Never: println(...)
-```
-
-## Type Class Constraints
-
-Use the weakest constraint that satisfies the need.
-
-### Constraint hierarchy
-
-```
-Functor < Applicative < Monad < MonadError < Sync < Async
-                               (ApplicativeError)
-```
-
-## Monad Transformers
-
-**Keep `OptionT` and `EitherT` local.** Never expose them in public interfaces — they degrade composability and force callers to deal with transformer stacks.
-
-In public APIs, prefer:
-
-| Instead of | Use |
-|---|---|
-| `OptionT[F, A]` | `F[Option[A]]` |
-| `EitherT[F, E, A]` | `F[Either[E, A]]` |
-| `EitherT[F, Throwable, A]` | `F[A]` with `MonadThrow` |
-
-```scala
-// ❌ Wrong - transformer leaks into public API
-def findUser(id: UserId): OptionT[F, User]
-
-// ✅ Correct - plain F[Option[A]]
-def findUser(id: UserId): F[Option[User]]
-```
-
-It is acceptable to use `OptionT` or `EitherT` **privately** inside an interpreter to chain optional steps, as long as you `.value` back to `F[Option/Either]` before returning.
-
-## State: Sequential vs Concurrent
+Use `Ref.modify` for atomic read-modify-write. Never: `get` then `set`.
 
 | Scenario | Use |
 |---|---|
-| Purely sequential, single-fiber computation | `cats.data.State[S, A]` or a recursive function |
+| Purely sequential, single-fiber | `cats.data.State[S, A]` or recursive function |
 | Shared mutable state across fibers | `Ref[F, S]` |
 | Shared state with stream notifications | `SignallingRef[F, S]` |
 
-**NEVER** use `Ref` as a substitute for sequential `State` — it adds unnecessary synchronization overhead. **NEVER** use `State` when concurrent access is possible — it is not thread-safe.
+## Error Handling
 
-```scala
-// ✅ Sequential only - State or fold
-def buildConfig(steps: List[Step]): Config =
-  steps.foldLeft(Config.empty)(_.apply(_))
+- Use `F[A]` + `MonadThrow` by default. Only use `F[Either[E, A]]` when callers **must** branch.
+- Custom domain errors extend `NoStackTrace`.
+- `handleErrorWith` for recovery — never swallow all errors.
+- `ValidatedNel` for multi-field user input validation at the boundary.
 
-// ✅ Concurrent - Ref
-for
-  counter <- Ref.of[F, Int](0)
-  _       <- List.fill(100)(counter.update(_ + 1)).parSequence
-yield counter
-```
+## Parallel Execution
+
+- `parTraverse` / `parTraverse_` for bounded parallelism.
+- `parTupled` for independent effects.
 
 ## Blocking Work
 
-**NEVER** call blocking JVM operations on the compute thread pool. Use `blocking` (CE3) to shift to the blocking pool:
+**NEVER** call blocking JVM operations on the compute thread pool:
 
 ```scala
-// ✅ Correct - blocking shifted off compute pool
-def readFile(path: Path): F[String] =
-  Sync[F].blocking(Files.readString(path))
-
-// ❌ Wrong - blocks a compute thread
-def readFile(path: Path): F[String] =
-  Sync[F].delay(Files.readString(path))
-```
-
-Use `evalOn` when you need to run on a specific `ExecutionContext` (e.g. a JDBC pool):
-
-```scala
-resource.evalOn(jdbcExecutionContext)
+// ✅ Correct
+Sync[F].blocking(Files.readString(path))
+// ❌ Wrong
+Sync[F].delay(Files.readString(path))
 ```
 
 ## Cancellation Safety
 
-Use `uncancelable` with `poll` when a critical section must not be interrupted but the outer operation still needs to be cancellable:
-
-```scala
-// ✅ Correct - protect critical section, keep outer cancellable
-F.uncancelable { poll =>
-  for
-    _      <- acquireLock             // not cancellable
-    result <- poll(doWork)            // cancellable again
-    _      <- releaseLock             // not cancellable
-  yield result
-}
-
-// ❌ Wrong - wrapping everything in uncancelable causes deadlocks
-F.uncancelable { _ =>
-  acquireLock *> doWork *> releaseLock
-}
-```
+Use `uncancelable` with `poll` — never wrap everything in `uncancelable`.
 
 ## Anti-patterns
 
 | Anti-pattern | Correct approach |
 |--------------|------------------|
-| `.unsafeRunSync()` in production | Use `IOApp` or `KyoApp` |
+| `.unsafeRunSync()` in production | Use `IOApp` |
 | Manual `try/finally` | `Resource.make` |
 | `var` for state | `Ref` or `SignallingRef` |
 | `.start` without supervision | `Supervisor` |
 | `Thread.sleep` | `Temporal[F].sleep` |
 | `println` for logging | `Logger[F].info` |
-| Catching `Throwable` broadly | Typed error handling |
 | `Seq` in public interfaces | `List`, `Vector`, `Chain`, or `fs2.Stream` |
 | `OptionT`/`EitherT` in public APIs | `F[Option[A]]` / `F[Either[E, A]]` |
 | Blocking call on compute pool | `Sync[F].blocking(...)` |

@@ -56,14 +56,11 @@ docker compose up postgres -d
 ### Run backend and frontend together
 
 ```bash
-cp .env.example .env   # once: edit .env with POSTGRES_* and LLM_*
-make db                # once: start Postgres
-make dev
+cp .env.example .env          # once: edit .env with POSTGRES_* and LLM_*
+mise run dev-docker           # once: start Postgres + Langfuse
+mise run dev-server           # backend hot-reload
+mise run dev-client           # frontend Vite HMR (http://localhost:5173)
 ```
-
-Or without Make: `sbt dev` (set env vars or export them first).
-
-Runs `npm install` in `client/` if `node_modules` is missing, starts the backend in the background, then the Vite dev server (frontend at http://localhost:5173, API at :8080). Stop with Ctrl+C (backend process is then shut down).
 
 ### Run the backend only
 
@@ -74,7 +71,7 @@ sbt server/run
 ### Run the frontend dev server only (with HMR and API proxy to :8080)
 
 ```bash
-cd client && npm install && npm run dev   # http://localhost:5173
+mise run dev-client   # http://localhost:5173
 ```
 
 ### Run tests
@@ -91,7 +88,7 @@ GITHUB_ACTIONS=TRUE sbt scalafmtAll Test/compile scalafmtAll
 
 ## Configuration
 
-All settings are read from environment variables. Copy `.env.example` to `.env`, then fill in `POSTGRES_*`. The Makefile loads `.env` automatically for `make dev`.
+All settings are read from environment variables. Copy `.env.example` to `.env`, then fill in `POSTGRES_*`. mise loads `.env` automatically for all tasks.
 
 LLM API keys are **per-user**: each user registers their own key via `PUT /api/user/llm-config` (provider + api key + model). No global LLM key is required on the server.
 

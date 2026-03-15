@@ -1,0 +1,54 @@
+[env]
+_.file = ".env"
+
+[tasks.dev-server]
+description = "Backend hot-reload (sbt ~reStart, loads .env)"
+run = 'sbt "~server/reStart"'
+
+[tasks.dev-client]
+description = "Frontend hot-reload (Vite)"
+dir = "new-client"
+run = "pnpm install --prefer-offline && pnpm dev"
+
+[tasks.db]
+description = "Start postgres in Docker"
+run = "docker compose up postgres -d"
+
+[tasks.langfuse]
+description = "Start Langfuse stack in Docker"
+run = """
+docker compose --profile langfuse up -d
+echo "Langfuse UI: http://localhost:3000  (admin@sding.local / admin-sding-local)"
+"""
+
+[tasks.langfuse-init-prompts]
+description = "Import prompts into Langfuse"
+run = "scala-cli scripts/langfuse-init-prompts.scala"
+
+[tasks.dev-docker]
+description = "Start postgres + Langfuse, auto-init prompts if empty"
+depends = ["db", "langfuse"]
+run = """
+LF_URL=${LANGFUSE_BASE_URL:-http://localhost:3000}
+LF_PUB=${LANGFUSE_PUBLIC_KEY:-pk-lf-sding-local-public-key}
+LF_SEC=${LANGFUSE_SECRET_KEY:-sk-lf-sding-local-secret-key}
+
+printf "Waiting for Langfuse to be ready"
+until curl -sf -u "$LF_PUB:$LF_SEC" "$LF_URL/api/public/v2/prompts" > /dev/null 2>&1; do
+  printf "."
+  sleep 2
+done
+echo " OK"
+
+if curl -sf -u "$LF_PUB:$LF_SEC" "$LF_URL/api/public/v2/prompts" | grep -q '"totalItems":0'; then
+  echo "Langfuse is empty — importing prompts from prompts.yaml..."
+  LANGFUSE_BASE_URL="$LF_URL" LANGFUSE_PUBLIC_KEY="$LF_PUB" LANGFUSE_SECRET_KEY="$LF_SEC" \
+    scala-cli scripts/langfuse-init-prompts.scala
+else
+  echo "Prompts already present in Langfuse — skipping init."
+fi
+"""
+
+[tasks.dev-llm]
+description = "Start local LLM (mlx_lm.server on :8080)"
+run = "mlx_lm.server --model mlx-community/Qwen3.5-35B-A3B-4bit --port 8080"

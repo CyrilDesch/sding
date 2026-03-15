@@ -2,6 +2,7 @@ package sding.repository
 
 import cats.effect.Sync
 import io.getquill.*
+import java.time.Instant
 import java.util.UUID
 import sding.domain.ChatId
 import sding.domain.MessageId
@@ -11,10 +12,11 @@ final case class MessageRecord(
     id: MessageId,
     chatId: ChatId,
     senderId: Option[UserId],
-    senderType: String,
+    senderType: SenderType,
     content: String,
-    contentType: String,
-    sourceNode: Option[String]
+    contentType: ContentType,
+    sourceNode: Option[String],
+    createdAt: Instant
 )
 
 final class MessageRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
@@ -27,13 +29,37 @@ final class MessageRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
   private given MappedEncoding[UserId, UUID]    = MappedEncoding(_.value)
   private given MappedEncoding[UUID, UserId]    = MappedEncoding(UserId.apply)
 
+  private given MappedEncoding[SenderType, String] = MappedEncoding {
+    case SenderType.User   => "USER"
+    case SenderType.System => "SYSTEM"
+    case SenderType.Agent  => "AGENT"
+  }
+  private given MappedEncoding[String, SenderType] = MappedEncoding {
+    case "USER"   => SenderType.User
+    case "SYSTEM" => SenderType.System
+    case "AGENT"  => SenderType.Agent
+    case s        => throw new IllegalArgumentException(s"Unknown sender_type: $s")
+  }
+
+  private given MappedEncoding[ContentType, String] = MappedEncoding {
+    case ContentType.Text     => "TEXT"
+    case ContentType.Markdown => "MARKDOWN"
+    case ContentType.Html     => "HTML"
+  }
+  private given MappedEncoding[String, ContentType] = MappedEncoding {
+    case "TEXT"     => ContentType.Text
+    case "MARKDOWN" => ContentType.Markdown
+    case "HTML"     => ContentType.Html
+    case s          => throw new IllegalArgumentException(s"Unknown content_type: $s")
+  }
+
   inline given SchemaMeta[MessageRecord] = schemaMeta("messages")
 
   def create(
       cid: ChatId,
-      senderType: String,
+      senderType: SenderType,
       content: String,
-      contentType: String,
+      contentType: ContentType,
       sourceNode: Option[String]
   ): F[MessageRecord] = Sync[F].blocking {
     val record = MessageRecord(
@@ -43,7 +69,8 @@ final class MessageRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
       senderType = senderType,
       content = content,
       contentType = contentType,
-      sourceNode = sourceNode
+      sourceNode = sourceNode,
+      createdAt = Instant.now()
     )
     run(query[MessageRecord].insertValue(lift(record)))
     record
@@ -53,7 +80,7 @@ final class MessageRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
     run(
       query[MessageRecord]
         .filter(_.chatId == lift(cid))
-        .sortBy(_.id)(using Ord.asc)
+        .sortBy(_.createdAt)(using Ord.asc)
         .drop(lift(offset))
         .take(lift(limit))
     )

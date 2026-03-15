@@ -1,5 +1,6 @@
 ---
-description: Scala 3 style — impure calls in Sync.defer, no var in pure modules, for-comp patterns, implicits, exhaustivity
+description: Scala 3 best practices for domain modeling, newtypes, type inference, pattern matching, and compilation verification
+globs: **/*.scala
 alwaysApply: false
 ---
 # Scala 3 Best Practices
@@ -10,20 +11,12 @@ alwaysApply: false
 
 **NEVER** use raw `String`, `Int`, or `Boolean` where a domain concept is involved. Wrap them in newtypes.
 
-```scala
-// ❌ Wrong - primitive obsession
-def createUser(name: String, email: String, age: Int): User
-
-// ✅ Correct - domain types
-def createUser(name: UserName, email: Email, age: Age): User
-```
-
 ### Newtypes for zero-cost wrappers
 
-Use `opaque type` (Scala 3 native) or the `newtype` library for zero-cost wrappers. Avoid `case class` wrappers (they allocate and expose `.copy`).
+Use `opaque type` (Scala 3 native). Avoid `case class` wrappers (they allocate and expose `.copy`).
 
 ```scala
-// ✅ Correct - opaque type, zero allocation with inline
+// ✅ Correct - opaque type, zero allocation
 opaque type UserId = Long
 object UserId:
   inline def apply(v: Long): UserId = v
@@ -35,22 +28,20 @@ case class UserId(value: Long)
 
 ### Eliminate boolean blindness
 
-If a boolean parameter or field hides meaning, replace it with a small ADT:
+Replace boolean parameters with small ADTs:
 
 ```scala
-// ❌ Wrong - what does `true` mean here?
+// ❌ Wrong
 def setActive(user: User, flag: Boolean): User
 
-// ✅ Correct - self-documenting
+// ✅ Correct
 enum AccountStatus:
   case Active, Suspended
-
-def setStatus(user: User, status: AccountStatus): User
 ```
 
 ### Smart constructors for external input
 
-Validate data at the boundary. Return `Either` or `ValidatedNel` from constructors that accept untrusted input:
+Return `Either` or `ValidatedNel` from constructors that accept untrusted input:
 
 ```scala
 opaque type Email = String
@@ -64,163 +55,89 @@ object Email:
 **NEVER** call impure functions directly. Always wrap in `Sync.delay` or `Sync.blocking`:
 
 ```scala
-// ✅ Correct - wrap impure calls
+// ✅ Correct
 val getHostname: IO[String] = IO(InetAddress.getLocalHost.getHostName)
 
-// ❌ Wrong - direct impure call at definition site
+// ❌ Wrong
 val hostname = InetAddress.getLocalHost.getHostName
 ```
 
 ## No `var` in Pure Modules
 
-**NEVER** use `var` in pure functional modules. Use immutable patterns instead:
-
-| Pattern | Replace with |
-|---------|--------------|
-| `var` accumulator in loop | `foldLeft` / `foldRight` |
-| Early `return` in loop | `boundary.break` |
-| Mutable state | Recursive function or `LazyList` |
-
-```scala
-import scala.util.boundary, scala.util.boundary.break
-
-// ✅ Correct - boundary.break for early exit
-def setString(x: Int, y: Int, s: String): (Buffer, Int, Int) =
-  boundary:
-    graphemes(s).foldLeft((this, x)):
-      case ((buf, xOffset), g) =>
-        if xOffset >= maxX then break((buf, xOffset, y))
-        (buf.set(xOffset, y, Cell(g)), xOffset + g.width)
-    match
-      case (buf, xOffset) => (buf, xOffset, y)
-```
+Use `foldLeft`, `foldRight`, or `boundary.break` instead.
 
 ## Pattern Matching in For-Comprehensions
 
-Pattern match directly in `<-` bindings — no intermediate binding needed:
+Pattern match directly in `<-` bindings — no intermediate binding:
 
 ```scala
-// ✅ Correct - pattern match directly
+// ✅ Correct
 for
     (start, end, result) <- fetchData().withStartEnd
-    (a, b, c)            <- anotherCall()
 yield process(result)
 
-// ❌ Wrong - unnecessary intermediate binding
+// ❌ Wrong
 for
-    response     <- fetchData().withStartEnd
+    response             <- fetchData().withStartEnd
     (start, end, result) = response
-    another      <- anotherCall()
-    (a, b, c)    = another
 yield process(result)
-```
-
-## Uninitialized Variables
-
-Use `scala.compiletime.uninitialized` for uninitialized vars (`= _` is not valid):
-
-```scala
-import scala.compiletime.uninitialized
-
-@transient private var client: HttpClient     = uninitialized
-@transient private var dispatcher: IORuntime  = uninitialized
 ```
 
 ## Type Inference
 
-Prefer explicit types for public APIs, allow inference for local vals:
-
-```scala
-// Public: explicit
-def fetchBalance(address: String): IO[BigInt] = ...
-
-// Local: inference OK
-val result = fetchBalance("0x...")
-```
-
-## JSON Return Types
-
-On public helpers that return JSON, use `io.circe.Json` not `String` — prevents accidental drift and makes intent unambiguous.
-
-## Extension Methods
-
-```scala
-extension (s: String)
-  def hexToLong: Long = java.lang.Long.parseLong(s.stripPrefix("0x"), 16)
-```
-
-## Typeclasses: given/using
-
-Use `given`/`using` — never `implicit def`/`implicit val`.
+Prefer explicit types for public APIs, allow inference for local vals.
 
 ## Avoid Anonymous Tuples
 
-**NEVER** use anonymous tuples `(A, B, C)`. Use **named tuples** (Scala 3.5+) or **case classes**:
+**NEVER** use anonymous tuples `(A, B, C)`. Use named tuples (Scala 3.5+) or case classes:
 
-| When to use | Type |
-|-------------|------|
-| Simple, local, 2-3 fields | Named tuple |
-| Public API / reused | Case class or enum |
-| Pattern matching | Either works |
-
-❌ **Wrong**:
 ```scala
+// ❌ Wrong
 def getStatus: (String, Style) = ("✓", greenStyle)
-val (icon, style) = getStatus  // unclear what each element means
-```
 
-✅ **Correct** (named tuple):
-```scala
+// ✅ Correct (named tuple)
 def getStatus: (symbol: String, style: Style) = (symbol = "✓", style = greenStyle)
-val status = getStatus
-println(status.symbol)  // named access
-```
 
-✅ **Correct** (case class / enum for reusable types):
-```scala
+// ✅ Correct (case class for reusable types)
 case class Status(symbol: String, style: Style)
 ```
 
-**Why**: Named tuples and case classes are self-documenting, refactor-safe, and prevent `_1`/`_2` confusion.
+## Typeclasses
+
+Use `given`/`using` — never `implicit def`/`implicit val`.
 
 ## Collections
 
-Avoid `Array` in Scala code — prefer immutable collections. **Exception: keep `Array` at Java API boundaries** where the API returns or requires it (e.g. `String.split`, `Throwable.getStackTrace`).
-
-**NEVER** use `Seq` in public interfaces — it hides semantics. Pick a concrete type that expresses the intent:
+**NEVER** use `Seq` in public interfaces:
 
 | Context | Use |
 |---------|-----|
 | Indexed, fast random access | `Vector` |
-| Cats / http4s accumulation | `Chain` (amortized O(1) append) |
+| Cats / http4s accumulation | `Chain` |
 | Streaming / unbounded | `fs2.Stream` |
-| Performance-critical immutable array | `IArray` |
 | Ordered, eager list | `List` |
 
-`Seq` is acceptable only in local, private helper code.
+Avoid `Array` except at Java API boundaries.
+
+## JSON Return Types
+
+On public helpers returning JSON, use `io.circe.Json` not `String`.
+
+## Uninitialized Variables
+
+Use `scala.compiletime.uninitialized` — `= _` is not valid in Scala 3.
+
+## Compilation Verification
+
+**ALWAYS verify compilation after Scala changes using Metals MCP tools.**
+
+- After editing a single file → `compile-file`
+- After changes spanning multiple files → `compile-module`
+- Fix compilation errors before proceeding.
 
 ## Scala-CLI Scripts
-
-### Default Configuration
-
-Always use Java 21 and latest Scala 3:
 
 ```scala
 //> using scala 3.8.1
 //> using jvm 21
 ```
-
-### Build Assembly JAR
-
-```bash
-scala-cli --power package script.scala -o output.jar --assembly
-```
-
-## Compilation Verification: ALWAYS use MCP tools
-
-**ALWAYS verify compilation after making Scala code changes using MCP tools.**
-
-- After editing a single file → `compile-file`
-- After changes spanning multiple files → `compile-module`
-- Linter ≠ compiler; never claim code is "ready" without compiling.
-- Fix compilation errors before proceeding.

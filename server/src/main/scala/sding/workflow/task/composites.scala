@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import sding.agent.Agent
 import sding.agent.AgentResult
 import sding.agent.PromptLoader
+import sding.protocol.WorkflowStep
 import sding.workflow.io.ChatContext
 import sding.workflow.result.*
 import sding.workflow.state.ProjectContextState
@@ -15,7 +16,7 @@ final class UserInterviewsTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends TaskNode[F]:
-  val name = "user_interviews"
+  val name = WorkflowStep.UserInterviews
 
   def execute(state: ProjectContextState): F[ProjectContextState] =
     for
@@ -47,7 +48,7 @@ final class PrototypeBuildsTask[F[_]: Async](
     promptLoader: PromptLoader[F],
     chatContext: ChatContext[F]
 ) extends TaskNode[F]:
-  val name = "prototype_builds"
+  val name = WorkflowStep.PrototypeBuilds
 
   private val maxRetries = 3
   private val minScore   = 5

@@ -2,6 +2,7 @@ package sding.workflow.state
 
 import io.circe.Decoder
 import io.circe.Encoder
+import sding.protocol.WorkflowStep
 import sding.workflow.result.*
 
 final case class ProjectContextState(
@@ -40,9 +41,9 @@ final case class ProjectContextState(
 ) derives Decoder,
       Encoder.AsObject:
 
-  def incrementIteration(nodeName: String): (ProjectContextState, Int) =
-    val current = iterationCount.getOrElse(nodeName, 0) + 1
-    (copy(iterationCount = iterationCount.updated(nodeName, current)), current)
+  def incrementIteration(step: WorkflowStep): (ProjectContextState, Int) =
+    val current = iterationCount.getOrElse(step.snakeName, 0) + 1
+    (copy(iterationCount = iterationCount.updated(step.snakeName, current)), current)
 
   def hasFeedback(key: String): Boolean =
     goBackFeedbacks.get(key).exists(_.nonEmpty)
