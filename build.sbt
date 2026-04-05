@@ -1,7 +1,7 @@
 import com.typesafe.sbt.packager.docker.ExecCmd
 import org.scalajs.linker.interface.ModuleKind
 
-ThisBuild / scalaVersion  := "3.8.2"
+ThisBuild / scalaVersion  := "3.8.3"
 ThisBuild / versionScheme := Some("semver-spec")
 ThisBuild / organization  := "io.sding"
 
@@ -23,8 +23,8 @@ val circeVersion       = "0.14.15"
 val fs2Version         = "3.13.0"
 val otel4sVersion      = "0.17.0"
 val scribeVersion      = "3.18.0"
-val scalatestVersion   = "3.2.19"
-val langgraph4jVersion = "1.8.9"
+val scalatestVersion   = "3.2.20"
+val langgraph4jVersion = "1.8.11"
 val langchain4jVersion = "1.12.2"
 
 // ─── shared (cross JVM + JS) ────────────────────────────────────────────────
@@ -111,8 +111,8 @@ lazy val server = (project in file("server"))
       "dev.langchain4j"       % "langchain4j-anthropic"         % langchain4jVersion,
       "org.snakeyaml"         % "snakeyaml-engine"              % "3.0.1",
       "io.getquill"          %% "quill-jdbc"                    % "4.8.6",
-      "org.flywaydb"          % "flyway-core"                   % "12.1.0",
-      "org.flywaydb"          % "flyway-database-postgresql"    % "12.1.0",
+      "org.flywaydb"          % "flyway-core"                   % "12.1.1",
+      "org.flywaydb"          % "flyway-database-postgresql"    % "12.1.1",
       "org.postgresql"        % "postgresql"                    % "42.7.10",
       "com.github.jwt-scala" %% "jwt-circe"                     % "11.0.3",
       "at.favre.lib"          % "bcrypt"                        % "0.10.2"
@@ -141,9 +141,9 @@ lazy val bundleFrontend = taskKey[Unit]("Build optimized frontend JS and copy to
 lazy val root = (project in file("."))
   .aggregate(shared.jvm, shared.js, server, client)
   .settings(
-    name         := "sding-root",
-    publish      := {},
-    publishLocal := {},
+    name           := "sding-root",
+    publish        := {},
+    publishLocal   := {},
     bundleFrontend := {
       val log = streams.value.log
       log.info("Building optimized frontend JS...")
