@@ -22,7 +22,7 @@ val http4sVersion      = "0.23.33"
 val circeVersion       = "0.14.15"
 val fs2Version         = "3.13.0"
 val otel4sVersion      = "0.17.0"
-val scribeVersion      = "3.18.0"
+val scribeVersion      = "3.19.0"
 val scalatestVersion   = "3.2.19"
 val langgraph4jVersion = "1.8.9"
 val langchain4jVersion = "1.12.2"
@@ -141,9 +141,9 @@ lazy val bundleFrontend = taskKey[Unit]("Build optimized frontend JS and copy to
 lazy val root = (project in file("."))
   .aggregate(shared.jvm, shared.js, server, client)
   .settings(
-    name         := "sding-root",
-    publish      := {},
-    publishLocal := {},
+    name           := "sding-root",
+    publish        := {},
+    publishLocal   := {},
     bundleFrontend := {
       val log = streams.value.log
       log.info("Building optimized frontend JS...")
