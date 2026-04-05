@@ -1,7 +1,7 @@
 import com.typesafe.sbt.packager.docker.ExecCmd
 import org.scalajs.linker.interface.ModuleKind
 
-ThisBuild / scalaVersion  := "3.8.2"
+ThisBuild / scalaVersion  := "3.8.3"
 ThisBuild / versionScheme := Some("semver-spec")
 ThisBuild / organization  := "io.sding"
 
