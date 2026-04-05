@@ -23,7 +23,7 @@ val circeVersion       = "0.14.15"
 val fs2Version         = "3.13.0"
 val otel4sVersion      = "0.17.0"
 val scribeVersion      = "3.18.0"
-val scalatestVersion   = "3.2.19"
+val scalatestVersion   = "3.2.20"
 val langgraph4jVersion = "1.8.11"
 val langchain4jVersion = "1.12.2"
 
