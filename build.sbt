@@ -17,7 +17,7 @@ ThisBuild / scalacOptions ++= scalacFromEnv
 ThisBuild / libraryDependencySchemes += "org.typelevel" %% "otel4s-core-trace" % "always"
 ThisBuild / libraryDependencySchemes += "io.getquill"   %% "quill-engine"      % "always"
 
-val http4sVersion      = "0.23.33"
+val http4sVersion      = "0.23.34"
 val circeVersion       = "0.14.15"
 val fs2Version         = "3.13.0"
 val otel4sVersion      = "0.17.0"
