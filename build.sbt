@@ -79,7 +79,7 @@ lazy val server = (project in file("server"))
       "io.circe"             %% "circe-parser"                  % circeVersion,
       "io.circe"             %% "circe-literal"                 % circeVersion,
       "org.http4s"           %% "http4s-circe"                  % http4sVersion,
-      "is.cir"               %% "ciris"                         % "3.12.0",
+      "is.cir"               %% "ciris"                         % "3.14.1",
       "org.typelevel"        %% "cats-effect"                   % "3.7.0",
       "org.scalatest"        %% "scalatest"                     % scalatestVersion % Test,
       "org.typelevel"        %% "cats-effect-testing-scalatest" % "1.8.0"          % Test,
