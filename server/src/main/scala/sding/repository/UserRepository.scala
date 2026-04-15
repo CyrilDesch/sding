@@ -4,7 +4,7 @@ import cats.effect.Sync
 import io.getquill.*
 import java.util.UUID
 import sding.domain.UserId
-import sding.protocol.LlmProvider
+import chat4s.ai.LlmProvider
 
 final case class UserRecord(
     id: UserId,
@@ -27,7 +27,11 @@ final class UserRepository[F[_]: Sync](ctx: PostgresJdbcContext[SnakeCase]):
   private given MappedEncoding[String, LlmProvider] = MappedEncoding { s =>
     LlmProvider.values
       .find(_.toString == s)
-      .getOrElse(throw new IllegalArgumentException(s"Unknown LlmProvider in DB: '$s'. Valid values: ${LlmProvider.values.mkString(", ")}"))
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Unknown LlmProvider in DB: '$s'. Valid values: ${LlmProvider.values.mkString(", ")}"
+        )
+      )
   }
 
   inline given SchemaMeta[UserRecord] = schemaMeta("users")

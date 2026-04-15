@@ -15,7 +15,7 @@ import org.http4s.server.Router
 import org.typelevel.otel4s.sdk.OpenTelemetrySdk
 import org.typelevel.otel4s.sdk.exporter.otlp.autoconfigure.OtlpExportersAutoConfigure
 import org.typelevel.otel4s.trace.Tracer
-import sding.agent.LivePromptLoader
+import chat4s.ai.prompt.LivePromptLoader
 import sding.auth.AuthService
 import sding.config.AppConfig
 import sding.config.LangfuseSettings
@@ -79,7 +79,7 @@ object Main extends IOApp.Simple:
         applied <- DatabaseMigrator.migrate[IO](config.postgres)
         _       <- IO.println(s"Flyway: $applied migration(s) applied")
 
-        promptLoader <- LivePromptLoader.make[IO]
+        promptLoader <- LivePromptLoader.makeFromClasspath[IO]
         chatService  <- LiveChatService
           .make[IO](userRepo, projectRepo, chatRepo, stepRepo, messageRepo, encryptionSvc, promptLoader)
 

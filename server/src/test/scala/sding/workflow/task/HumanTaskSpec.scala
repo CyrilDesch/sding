@@ -2,13 +2,13 @@ package sding.workflow.task
 
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
+import chat4s.io.ChatContext
+import chat4s.io.MessageFormat
+import chat4s.io.SelectionItem
+import chat4s.io.UserInputRequest
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
-import sding.protocol.SelectionItem
-import sding.workflow.io.ChatContext
-import sding.workflow.io.MessageFormat
-import sding.workflow.io.UserInputRequest
-import sding.workflow.result.*
+import sding.workflow.task.*
 import sding.workflow.state.ProjectContextState
 
 class HumanTaskSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:

@@ -5,7 +5,7 @@ import io.circe.syntax.*
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import sding.protocol.WorkflowStep
-import sding.workflow.result.*
+import sding.workflow.task.*
 
 class ProjectContextStateSpec extends AnyWordSpec with Matchers:
 

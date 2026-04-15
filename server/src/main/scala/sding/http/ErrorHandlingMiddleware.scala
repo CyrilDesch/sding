@@ -18,7 +18,10 @@ object ErrorHandlingMiddleware:
       routes(req).handleErrorWith { e =>
         OptionT.liftF(
           Async[F].delay(
-            scribe.error(s"Unhandled error on ${req.method} ${req.uri}: ${e.getClass.getSimpleName}: ${e.getMessage}", e)
+            scribe.error(
+              s"Unhandled error on ${req.method} ${req.uri}: ${e.getClass.getSimpleName}: ${e.getMessage}",
+              e
+            )
           ) *>
             InternalServerError(ErrorResponse("Internal server error").asJson)
         )

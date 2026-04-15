@@ -24,10 +24,6 @@ until curl -sf -u "$LF_PUB:$LF_SEC" "$LF_URL/api/public/v2/prompts" > /dev/null 
 done
 echo " OK"
 
-if curl -sf -u "$LF_PUB:$LF_SEC" "$LF_URL/api/public/v2/prompts" | grep -q '"totalItems":0'; then
-  echo "Langfuse is empty — importing prompts from prompts.yaml..."
-  LANGFUSE_BASE_URL="$LF_URL" LANGFUSE_PUBLIC_KEY="$LF_PUB" LANGFUSE_SECRET_KEY="$LF_SEC" \
-    scala-cli "$SCRIPT_DIR/langfuse-init-prompts.scala"
-else
-  echo "Prompts already present in Langfuse — skipping init."
-fi
+echo "Migrating prompts from prompts.yaml..."
+LANGFUSE_BASE_URL="$LF_URL" LANGFUSE_PUBLIC_KEY="$LF_PUB" LANGFUSE_SECRET_KEY="$LF_SEC" \
+  scala-cli "$SCRIPT_DIR/langfuse-migrate-prompts.scala"

@@ -1,22 +1,11 @@
 package sding.protocol
 
+import chat4s.io.SelectionItem
 import io.circe.Decoder
 import io.circe.Encoder
 import io.circe.HCursor
 import io.circe.Json
 import io.circe.syntax.*
-
-final case class SelectionDetail(label: String, value: String) derives Decoder, Encoder.AsObject
-
-final case class SelectionItem(
-    id: String,
-    label: String,
-    description: Option[String],
-    score: Option[Double],
-    tags: List[String],
-    details: List[SelectionDetail]
-) derives Decoder,
-      Encoder.AsObject
 
 enum SseEvent:
   case WorkflowPlan(steps: List[WorkflowStep])

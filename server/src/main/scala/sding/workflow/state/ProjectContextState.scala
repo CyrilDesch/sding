@@ -3,7 +3,7 @@ package sding.workflow.state
 import io.circe.Decoder
 import io.circe.Encoder
 import sding.protocol.WorkflowStep
-import sding.workflow.result.*
+import sding.workflow.task.*
 
 final case class ProjectContextState(
     workflowId: String = java.util.UUID.randomUUID().toString,

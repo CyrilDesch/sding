@@ -23,11 +23,34 @@ val fs2Version         = "3.13.0"
 val otel4sVersion      = "0.17.0"
 val scribeVersion      = "3.18.0"
 val scalatestVersion   = "3.2.19"
-val langgraph4jVersion = "1.8.9"
 val langchain4jVersion = "1.12.2"
+
+// ─── chat4s workflow library ─────────────────────────────────────────────────
+lazy val chat4s = (project in file("chat4s"))
+  .settings(
+    name := "chat4s",
+    libraryDependencies ++= Seq(
+      "org.typelevel"  %% "cats-effect"                    % "3.7.0",
+      "co.fs2"         %% "fs2-core"                       % fs2Version,
+      "org.typelevel"  %% "otel4s-sdk"                     % otel4sVersion,
+      "org.typelevel"  %% "otel4s-sdk-exporter"            % otel4sVersion,
+      "io.circe"       %% "circe-core"                     % circeVersion,
+      "io.circe"       %% "circe-parser"                   % circeVersion,
+      "dev.langchain4j" % "langchain4j"                    % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-google-ai-gemini"   % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-open-ai"            % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-anthropic"          % langchain4jVersion,
+      "org.snakeyaml"   % "snakeyaml-engine"               % "3.0.1",
+      "com.outr"       %% "scribe"                         % scribeVersion,
+      "org.scalatest"  %% "scalatest"                      % scalatestVersion % Test,
+      "org.typelevel"  %% "cats-effect-testing-scalatest"  % "1.8.0"          % Test,
+      "org.typelevel"  %% "cats-effect-testkit"            % "3.7.0"          % Test
+    )
+  )
 
 // ─── server (JVM) ───────────────────────────────────────────────────────────
 lazy val server = (project in file("server"))
+  .dependsOn(chat4s)
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(JavaServerAppPackaging, DockerPlugin)
   .settings(
@@ -92,12 +115,7 @@ lazy val server = (project in file("server"))
       "com.outr"             %% "scribe-slf4j2"                 % scribeVersion,
       "com.outr"             %% "scribe-cats"                   % scribeVersion,
       "com.outr"             %% "scribe-json-circe"             % scribeVersion,
-      "org.bsc.langgraph4j"   % "langgraph4j-core"              % langgraph4jVersion,
       "dev.langchain4j"       % "langchain4j"                   % langchain4jVersion,
-      "dev.langchain4j"       % "langchain4j-google-ai-gemini"  % langchain4jVersion,
-      "dev.langchain4j"       % "langchain4j-open-ai"           % langchain4jVersion,
-      "dev.langchain4j"       % "langchain4j-anthropic"         % langchain4jVersion,
-      "org.snakeyaml"         % "snakeyaml-engine"              % "3.0.1",
       "io.getquill"          %% "quill-jdbc"                    % "4.8.6",
       "org.flywaydb"          % "flyway-core"                   % "12.1.0",
       "org.flywaydb"          % "flyway-database-postgresql"    % "12.1.0",
@@ -107,9 +125,11 @@ lazy val server = (project in file("server"))
     )
   )
 
+addCommandAlias("mermaid", "server/runMain chat4s.graph.ExportMermaid sding.workflow.graph.ProjectContextGraph$")
+
 // ─── root aggregator ────────────────────────────────────────────────────────
 lazy val root = (project in file("."))
-  .aggregate(server)
+  .aggregate(chat4s, server)
   .settings(
     name         := "sding-root",
     publish      := {},

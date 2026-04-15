@@ -4,14 +4,11 @@ import cats.effect.Async
 import cats.effect.Ref
 import cats.effect.std.Queue
 import cats.syntax.all.*
-import io.circe.parser.decode as circeDecodeJson
-import io.circe.syntax.*
+import chat4s.ai.prompt.PromptLoader
+import chat4s.graph.WorkflowEngine
+import chat4s.graph.WorkflowId
 import org.typelevel.otel4s.trace.Tracer
-import sding.agent.Agent
-import sding.agent.AgentFactory
-import sding.agent.AgentTool
-import sding.agent.PromptLoader
-import sding.agent.WebSearchTool
+import chat4s.ai.tools.WebSearchTool
 import sding.domain.AppError
 import sding.domain.ChatId
 import sding.domain.UserId
@@ -27,9 +24,7 @@ import sding.repository.SenderType
 import sding.repository.StepRepository
 import sding.repository.UserRepository
 import sding.workflow.graph.ProjectContextGraph
-import sding.workflow.io.ChatContext
 import sding.workflow.state.ProjectContextState
-import sding.workflow.task.*
 
 trait ChatService[F[_]]:
   def createChat(userId: UserId): F[ChatId]
@@ -56,6 +51,7 @@ final class LiveChatService[F[_]: Async: Tracer](
     messageRepo: MessageRepository[F],
     encryptionSvc: EncryptionService[F],
     promptLoader: PromptLoader[F],
+    workflowEngine: WorkflowEngine[F],
     sessions: Ref[F, Map[ChatId, ChatSession[F]]]
 ) extends ChatService[F]:
 
@@ -69,8 +65,7 @@ final class LiveChatService[F[_]: Async: Tracer](
         chatId,
         userId,
         step.id,
-        ProjectContextState(chatIdStr = Some(chatId.asString)),
-        WorkflowStep.HumanRequirements
+        ProjectContextState(chatIdStr = Some(chatId.asString))
       )
       _ <- sessions.update(_.updated(chatId, session))
     yield chatId
@@ -162,33 +157,33 @@ final class LiveChatService[F[_]: Async: Tracer](
       project    <- projectOpt match
         case None    => Async[F].raiseError(AppError.ChatError.ChatNotFound(chatId))
         case Some(p) => Async[F].pure(p)
-      savedState <- Async[F].fromEither(
-        circeDecodeJson[ProjectContextState](step.jsonState).left
-          .map(e => new RuntimeException(s"Failed to parse workflow state: ${e.getMessage}"))
-      )
-      startFrom = determineStartFrom(step, savedState)
-      session <- startWorkflow(chatId, project.userId, step.id, savedState, startFrom)
-      _       <- sessions.update(_.updated(chatId, session))
-    yield session
-
-  private def determineStartFrom(
-      step: sding.repository.StepRecord,
-      state: ProjectContextState
-  ): WorkflowStep =
-    step.currentTask
-      .flatMap(WorkflowStep.fromString)
-      .flatMap { lastCompleted =>
-        val edgeGraph = ProjectContextGraph.build[F](Map.empty)
-        ProjectContextGraph.resolveNextStep(edgeGraph, lastCompleted, state)
+      llmCfg <- userRepo.getLlmConfig(project.userId).flatMap {
+        case Some(cfg) => Async[F].pure(cfg)
+        case None      => Async[F].raiseError(AppError.ChatError.LlmNotConfigured(project.userId))
       }
-      .getOrElse(WorkflowStep.HumanRequirements)
+      (provider, encryptedKey, model) = llmCfg
+      apiKey                   <- encryptionSvc.decrypt(encryptedKey)
+      agent                    <- chat4s.ai.AgentFactory.makeAgent(provider, apiKey, model)
+      (ctx, eventLog, inbound) <- LiveChatContext.make[F](messageRepo, chatId)
+      wf      = ProjectContextGraph.build(agent, promptLoader, ctx, WebSearchTool.stub[F])
+      journal = new StepRepoWorkflowJournal[F](stepRepo, step.id)
+      wfId     = WorkflowId(step.id.value.toString)
+      execOpt   <- workflowEngine.resume(wfId, wf, journal)
+      execution <- execOpt match
+        case Some(exec) => Async[F].pure(exec)
+        case None       =>
+          // Edge case: the step is in DB but no checkpoint is parseable; restart from entry
+          workflowEngine.start(wfId, wf, ProjectContextState(chatIdStr = Some(chatId.asString)), journal)
+      session = ChatSession(ctx, eventLog, inbound)
+      _ <- sessions.update(_.updated(chatId, session))
+      _ <- Async[F].start(runExecution(chatId, step.id, ctx, eventLog, execution))
+    yield session
 
   private def startWorkflow(
       chatId: ChatId,
       userId: UserId,
       stepId: sding.domain.StepId,
-      initialState: ProjectContextState,
-      startFrom: WorkflowStep
+      initialState: ProjectContextState
   ): F[ChatSession[F]] =
     for
       llmCfg <- userRepo.getLlmConfig(userId).flatMap {
@@ -197,74 +192,44 @@ final class LiveChatService[F[_]: Async: Tracer](
       }
       (provider, encryptedKey, model) = llmCfg
       apiKey                   <- encryptionSvc.decrypt(encryptedKey)
-      agent                    <- AgentFactory.makeAgent(provider, apiKey, model)
+      agent                    <- chat4s.ai.AgentFactory.makeAgent(provider, apiKey, model)
       (ctx, eventLog, inbound) <- LiveChatContext.make[F](messageRepo, chatId)
-      pipeline = buildPipeline(agent, promptLoader, ctx, WebSearchTool.stub[F])
-      session  = ChatSession(ctx, eventLog, inbound)
-      _ <- Async[F].start(runWorkflow(chatId, stepId, ctx, eventLog, pipeline, initialState, startFrom))
+      wf      = ProjectContextGraph.build(agent, promptLoader, ctx, WebSearchTool.stub[F])
+      journal = new StepRepoWorkflowJournal[F](stepRepo, stepId)
+      wfId     = WorkflowId(stepId.value.toString)
+      execution <- workflowEngine.start(wfId, wf, initialState, journal)
+      session = ChatSession(ctx, eventLog, inbound)
+      _ <- Async[F].start(runExecution(chatId, stepId, ctx, eventLog, execution))
     yield session
 
-  private def buildPipeline(
-      agent: Agent[F],
-      promptLoader: PromptLoader[F],
-      chatCtx: ChatContext[F],
-      searchTool: AgentTool[F]
-  ): List[TaskNode[F]] =
-    List(
-      HumanRequirementsTask[F](chatCtx),
-      WeirdProblemGenerationTask[F](agent, promptLoader, chatCtx),
-      ProblemReformulationTask[F](agent, promptLoader, chatCtx),
-      TrendAnalysisTask[F](agent, promptLoader, chatCtx, searchTool),
-      ProblemSelectionTask[F](chatCtx),
-      HumanProblemSelectionTask[F](chatCtx),
-      UserInterviewsTask[F](agent, promptLoader, chatCtx),
-      EmpathyMapTask[F](agent, promptLoader, chatCtx),
-      JTBDDefinitionTask[F](agent, promptLoader, chatCtx),
-      HumanJTBDSelectionTask[F](chatCtx),
-      HMWTask[F](agent, promptLoader, chatCtx),
-      Crazy8sTask[F](agent, promptLoader, chatCtx),
-      ScamperTask[F](agent, promptLoader, chatCtx),
-      CompetitiveAnalysisTask[F](agent, promptLoader, chatCtx, searchTool),
-      HumanComprehensiveSelectionTask[F](chatCtx),
-      PrototypeBuildsTask[F](agent, promptLoader, chatCtx),
-      HumanProjectSelectionTask[F](chatCtx),
-      PremiumReportTask[F](agent, promptLoader, chatCtx),
-      MarkdownGenerationTask[F]()
-    )
-
-  private def runWorkflow(
+  private def runExecution(
       chatId: ChatId,
       stepId: sding.domain.StepId,
       ctx: LiveChatContext[F],
       eventLog: EventLog[F],
-      pipeline: List[TaskNode[F]],
-      initialState: ProjectContextState,
-      startFrom: WorkflowStep
+      execution: chat4s.graph.WorkflowExecution[F, ProjectContextState]
   ): F[Unit] =
-    {
-      val plan  = pipeline.map(_.name)
-      val tasks = pipeline.map(t => t.name -> t).toMap
-      val graph = ProjectContextGraph.build(tasks).copy(entryPoint = startFrom)
-      eventLog.publish(SseEvent.WorkflowPlan(plan)) *>
-        ProjectContextGraph
-          .execute(graph, initialState)
-          .evalTap { case (step, state) =>
+    val plan = WorkflowStep.values.toList
+    (eventLog.publish(SseEvent.WorkflowPlan(plan)) *>
+      execution.stream
+        .evalTap { result =>
+          WorkflowStep.fromString(result.stepId).fold(Async[F].unit) { step =>
             ctx.setCurrentNode(step) *>
               messageRepo.create(chatId, SenderType.System, "node_complete", ContentType.Text, Some(step.snakeName)) *>
-              stepRepo.updateState(stepId, state.asJson.noSpaces, Some(step.snakeName)) *>
               eventLog.publish(SseEvent.NodeComplete(step))
           }
-          .compile
-          .drain
-          .flatMap { _ =>
-            messageRepo.create(chatId, SenderType.System, "workflow_complete", ContentType.Text, None) *>
-              stepRepo.markFinished(stepId) *>
-              eventLog.publish(SseEvent.WorkflowComplete(chatId.asString))
-          }
-    }.handleErrorWith(e =>
-      eventLog.publish(SseEvent.Error(e.getMessage)) *>
-        sessions.update(_ - chatId)
-    )
+        }
+        .compile
+        .drain
+        .flatMap { _ =>
+          messageRepo.create(chatId, SenderType.System, "workflow_complete", ContentType.Text, None) *>
+            stepRepo.markFinished(stepId) *>
+            eventLog.publish(SseEvent.WorkflowComplete(chatId.asString))
+        })
+      .handleErrorWith(e =>
+        eventLog.publish(SseEvent.Error(e.getMessage)) *>
+          sessions.update(_ - chatId)
+      )
 
   private def messageToEvent(msg: MessageRecord): Option[SseEvent] =
     msg.senderType match
@@ -288,7 +253,7 @@ final class LiveChatService[F[_]: Async: Tracer](
                 case Some("selection_request") =>
                   for
                     title      <- cursor.get[String]("title").toOption
-                    items      <- cursor.get[List[sding.protocol.SelectionItem]]("items").toOption
+                    items      <- cursor.get[List[chat4s.io.SelectionItem]]("items").toOption
                     allowRetry <- cursor.get[Boolean]("allow_retry").toOption
                   yield SseEvent.SelectionRequest(title, items, allowRetry, sourceNode)
                 case _ =>
@@ -323,6 +288,7 @@ object LiveChatService:
         messageRepo,
         encryptionSvc,
         promptLoader,
+        WorkflowEngine.make[F],
         sessions
       )
     }

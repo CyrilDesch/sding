@@ -184,16 +184,16 @@ task_prompts:
     Language: {{ project_language }}
 
   TrendAnalysisTask: |
-    Research and analyze market trends relevant to this product variant.
+    Research and analyze market trends relevant to this problem.
 
-    SCAMPER Variant:
-    {{ scamper_variant }}
+    Problem to analyze:
+    {{ problem }}
 
     Project Type: {{ project_type }}
     Software Type: {{ project_software_type }}
     Language: {{ project_language }}
 
-    Identify emerging trends, technology shifts, and market signals that affect this variant.
+    Identify emerging trends, technology shifts, and market signals that affect this problem.
 
   UserInterviewTask: |
     Conduct a simulated user interview for the following prototype.

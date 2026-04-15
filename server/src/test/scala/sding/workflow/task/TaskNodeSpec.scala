@@ -2,20 +2,22 @@ package sding.workflow.task
 
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
+import chat4s.ai.*
+import chat4s.ai.prompt.{PromptLink, PromptLoader, PromptTemplate}
+import chat4s.io.ChatContext
+import chat4s.io.MessageFormat
+import chat4s.io.SelectionItem
+import chat4s.io.UserInputRequest
 import io.circe.Decoder
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
-import sding.agent.*
-import sding.workflow.io.ChatContext
-import sding.workflow.io.MessageFormat
-import sding.workflow.io.UserInputRequest
-import sding.workflow.result.*
+import sding.workflow.task.*
 import sding.workflow.state.ProjectContextState
 
 class TaskNodeSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 
   private def stubAgent(response: String): Agent[IO] = new Agent[IO]:
-    val name                                                                                 = "test-agent"
+    val name                                                                                       = "test-agent"
     def call[A: Decoder: JsonSchemaOf](prompt: String, promptLink: PromptLink): IO[AgentResult[A]] =
       IO {
         io.circe.parser.decode[A](response) match
@@ -25,7 +27,6 @@ class TaskNodeSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
     def tooledCall[A: Decoder: JsonSchemaOf](
         prompt: String,
         tools: List[AgentTool[IO]],
-        maxToolCalls: Int,
         promptLink: PromptLink
     ): IO[AgentResult[A]] =
       call(prompt, promptLink)
@@ -36,11 +37,11 @@ class TaskNodeSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
       IO.pure(PromptTemplate(name, "Task: {{ project_requirements }}", version = 1))
 
   private def recordingChatContext: ChatContext[IO] = new ChatContext[IO]:
-    def sessionId: String                                              = "test-session"
+    def sessionId: String                                             = "test-session"
     def sendMessage(message: String, format: MessageFormat): IO[Unit] = IO.unit
     def sendState(message: String): IO[Unit]                          = IO.unit
     def requestInput(request: UserInputRequest): IO[String]           = IO.pure("test-input")
-    def requestSelection(title: String, items: List[sding.protocol.SelectionItem], allowRetry: Boolean): IO[String] =
+    def requestSelection(title: String, items: List[SelectionItem], allowRetry: Boolean): IO[String] =
       IO.pure("test-input")
 
   val baseState: ProjectContextState = ProjectContextState(
@@ -69,13 +70,12 @@ class TaskNodeSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 
     "propagate agent failure as error" in {
       val failAgent = new Agent[IO]:
-        val name                                                                                 = "fail-agent"
+        val name                                                                                       = "fail-agent"
         def call[A: Decoder: JsonSchemaOf](prompt: String, promptLink: PromptLink): IO[AgentResult[A]] =
           IO.pure(AgentResult.Failure("LLM failed", name))
         def tooledCall[A: Decoder: JsonSchemaOf](
             prompt: String,
             tools: List[AgentTool[IO]],
-            maxToolCalls: Int,
             promptLink: PromptLink
         ): IO[AgentResult[A]] =
           call(prompt, promptLink)
@@ -101,7 +101,7 @@ class TaskNodeSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
     "collect requirements from chat context" in {
       var prompts = List.empty[String]
       val chatCtx = new ChatContext[IO]:
-        def sessionId: String                                              = "test-session"
+        def sessionId: String                                             = "test-session"
         def sendMessage(message: String, format: MessageFormat): IO[Unit] = IO.unit
         def sendState(message: String): IO[Unit]                          = IO.unit
         def requestInput(request: UserInputRequest): IO[String]           =
@@ -117,7 +117,7 @@ class TaskNodeSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
           }
         def requestSelection(
             title: String,
-            items: List[sding.protocol.SelectionItem],
+            items: List[SelectionItem],
             allowRetry: Boolean
         ): IO[String] =
           IO.pure("test-input")

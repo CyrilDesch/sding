@@ -4,17 +4,17 @@ import cats.effect.Async
 import cats.effect.Ref
 import cats.effect.std.Queue
 import cats.syntax.all.*
+import chat4s.io.ChatContext
+import chat4s.io.MessageFormat
+import chat4s.io.SelectionItem
+import chat4s.io.UserInputRequest
 import io.circe.syntax.*
 import sding.domain.ChatId
-import sding.protocol.SelectionItem
 import sding.protocol.SseEvent
 import sding.protocol.WorkflowStep
 import sding.repository.ContentType
 import sding.repository.MessageRepository
 import sding.repository.SenderType
-import sding.workflow.io.ChatContext
-import sding.workflow.io.MessageFormat
-import sding.workflow.io.UserInputRequest
 
 final class LiveChatContext[F[_]: Async](
     outbound: EventLog[F],
