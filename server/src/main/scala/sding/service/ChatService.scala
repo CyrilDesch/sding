@@ -5,10 +5,10 @@ import cats.effect.Ref
 import cats.effect.std.Queue
 import cats.syntax.all.*
 import chat4s.ai.prompt.PromptLoader
+import chat4s.ai.tools.WebSearchTool
 import chat4s.graph.WorkflowEngine
 import chat4s.graph.WorkflowId
 import org.typelevel.otel4s.trace.Tracer
-import chat4s.ai.tools.WebSearchTool
 import sding.domain.AppError
 import sding.domain.ChatId
 import sding.domain.UserId
@@ -167,7 +167,7 @@ final class LiveChatService[F[_]: Async: Tracer](
       (ctx, eventLog, inbound) <- LiveChatContext.make[F](messageRepo, chatId)
       wf      = ProjectContextGraph.build(agent, promptLoader, ctx, WebSearchTool.stub[F])
       journal = new StepRepoWorkflowJournal[F](stepRepo, step.id)
-      wfId     = WorkflowId(step.id.value.toString)
+      wfId    = WorkflowId(step.id.value.toString)
       execOpt   <- workflowEngine.resume(wfId, wf, journal)
       execution <- execOpt match
         case Some(exec) => Async[F].pure(exec)
@@ -196,7 +196,7 @@ final class LiveChatService[F[_]: Async: Tracer](
       (ctx, eventLog, inbound) <- LiveChatContext.make[F](messageRepo, chatId)
       wf      = ProjectContextGraph.build(agent, promptLoader, ctx, WebSearchTool.stub[F])
       journal = new StepRepoWorkflowJournal[F](stepRepo, stepId)
-      wfId     = WorkflowId(stepId.value.toString)
+      wfId    = WorkflowId(stepId.value.toString)
       execution <- workflowEngine.start(wfId, wf, initialState, journal)
       session = ChatSession(ctx, eventLog, inbound)
       _ <- Async[F].start(runExecution(chatId, stepId, ctx, eventLog, execution))

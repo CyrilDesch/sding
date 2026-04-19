@@ -1,7 +1,8 @@
 package chat4s.graph
 
 import java.lang.ProcessBuilder as JProcessBuilder
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
+import java.nio.file.Path
 
 /** Renders Mermaid diagrams for registered workflow blueprints as PNG images.
   *

@@ -70,7 +70,8 @@ object LiveLlmClient:
         else Json.obj("role" := "assistant", "content" := Option(aiMsg.text()).getOrElse("")).noSpaces
 
       private def buildResponseFormat(schema: JsonObjectSchema): ResponseFormat =
-        ResponseFormat.builder()
+        ResponseFormat
+          .builder()
           .`type`(ResponseFormatType.JSON)
           .jsonSchema(JsonSchema.builder().name("structured_output").rootElement(schema).build())
           .build()
@@ -81,8 +82,9 @@ object LiveLlmClient:
           outputSchema: JsonObjectSchema,
           promptLink: PromptLink
       ): F[String] =
-        val messages  = java.util.List.of(SystemMessage.from(systemPrompt), UserMessage.from(userPrompt))
-        val request   = ChatRequest.builder()
+        val messages = java.util.List.of(SystemMessage.from(systemPrompt), UserMessage.from(userPrompt))
+        val request  = ChatRequest
+          .builder()
           .messages(messages)
           .responseFormat(buildResponseFormat(outputSchema))
           .build()
@@ -93,8 +95,8 @@ object LiveLlmClient:
             _        <- span.addAttribute(Attribute(AttributeKey.string("langfuse.observation.input"), inputJson))
             response <- Sync[F].blocking(model.chat(request))
             _        <- recordUsage(span, response.tokenUsage())
-            result    = Option(response.aiMessage().text()).getOrElse("{}")
-            _        <- span.addAttribute(Attribute(AttributeKey.string("langfuse.observation.output"), result))
+            result = Option(response.aiMessage().text()).getOrElse("{}")
+            _ <- span.addAttribute(Attribute(AttributeKey.string("langfuse.observation.output"), result))
           yield result
         }
 
@@ -144,7 +146,8 @@ object LiveLlmClient:
           outputSchema: JsonObjectSchema,
           promptLink: PromptLink
       ): F[String] =
-        val request   = ChatRequest.builder()
+        val request = ChatRequest
+          .builder()
           .messages(toJavaMessages(systemPrompt, history))
           .responseFormat(buildResponseFormat(outputSchema))
           .build()
@@ -155,8 +158,8 @@ object LiveLlmClient:
             _        <- span.addAttribute(Attribute(AttributeKey.string("langfuse.observation.input"), inputJson))
             response <- Sync[F].blocking(model.chat(request))
             _        <- recordUsage(span, response.tokenUsage())
-            result    = Option(response.aiMessage().text()).getOrElse("{}")
-            _        <- span.addAttribute(Attribute(AttributeKey.string("langfuse.observation.output"), result))
+            result = Option(response.aiMessage().text()).getOrElse("{}")
+            _ <- span.addAttribute(Attribute(AttributeKey.string("langfuse.observation.output"), result))
           yield result
         }
 

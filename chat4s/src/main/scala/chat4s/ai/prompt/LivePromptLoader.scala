@@ -37,12 +37,13 @@ object LivePromptLoader:
     }
 
   def makeFromClasspath[F[_]: Sync]: F[PromptLoader[F]] =
-    Sync[F].blocking {
-      val is = getClass.getClassLoader.getResourceAsStream("prompts.yaml")
-      if is == null then
-        throw new PromptLoadError("PromptLoader", "prompts.yaml not found on classpath")
-      is
-    }.flatMap(make[F])
+    Sync[F]
+      .blocking {
+        val is = getClass.getClassLoader.getResourceAsStream("prompts.yaml")
+        if is == null then throw new PromptLoadError("PromptLoader", "prompts.yaml not found on classpath")
+        is
+      }
+      .flatMap(make[F])
 
   @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
   private def loadYaml[F[_]: Sync](is: InputStream): F[Map[String, Map[String, String]]] =

@@ -1,10 +1,10 @@
 package sding.repository
 
 import cats.effect.Sync
+import chat4s.ai.LlmProvider
 import io.getquill.*
 import java.util.UUID
 import sding.domain.UserId
-import chat4s.ai.LlmProvider
 
 final case class UserRecord(
     id: UserId,
