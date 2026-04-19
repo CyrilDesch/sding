@@ -9,8 +9,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
 import org.typelevel.otel4s.trace.Tracer
 import sding.protocol.WorkflowStep
-import sding.workflow.state.ProjectContextState
 import sding.workflow.TaskNode
+import sding.workflow.state.ProjectContextState
 
 class ProjectContextGraphSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 

@@ -11,8 +11,8 @@ import chat4s.graph.WorkflowDef
 import chat4s.graph.WorkflowEdge
 import chat4s.io.ChatContext
 import sding.protocol.WorkflowStep
-import sding.workflow.state.ProjectContextState
 import sding.workflow.TaskNode
+import sding.workflow.state.ProjectContextState
 import sding.workflow.task.*
 
 object ProjectContextGraph:

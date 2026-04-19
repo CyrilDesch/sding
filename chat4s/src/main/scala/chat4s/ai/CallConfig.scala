@@ -6,7 +6,7 @@ package chat4s.ai
   * agent at construction time.
   */
 final case class CallConfig(
-    maxToolCallRounds: Int  = 5,
+    maxToolCallRounds: Int = 5,
     maxToolResultChars: Int = 2000
 )
 

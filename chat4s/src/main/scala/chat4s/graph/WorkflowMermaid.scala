@@ -27,5 +27,4 @@ object WorkflowMermaid:
   def render[F[_], S](workflow: WorkflowDef[F, S]): String =
     render(WorkflowBlueprint.from("", workflow))
 
-  extension [F[_], S](workflow: WorkflowDef[F, S])
-    def toMermaid: String = render(workflow)
+  extension [F[_], S](workflow: WorkflowDef[F, S]) def toMermaid: String = render(workflow)
