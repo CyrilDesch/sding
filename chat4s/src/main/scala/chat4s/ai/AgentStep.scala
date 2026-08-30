@@ -2,7 +2,8 @@ package chat4s.ai
 
 import cats.effect.Async
 import cats.syntax.all.*
-import chat4s.ai.prompt.{PromptLink, PromptLoader}
+import chat4s.ai.prompt.PromptLink
+import chat4s.ai.prompt.PromptLoader
 import chat4s.graph.Step
 import chat4s.io.ChatContext
 import io.circe.Decoder

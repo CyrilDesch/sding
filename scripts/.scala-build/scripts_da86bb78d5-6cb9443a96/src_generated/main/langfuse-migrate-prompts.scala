@@ -1,5 +1,3 @@
-
-
 //> using scala 3.8.2
 //> using jvm 21
 //> using dep "org.snakeyaml:snakeyaml-engine:3.0.1"
@@ -18,6 +16,17 @@
   * Run directly: scala-cli scripts/langfuse-migrate-prompts.scala
   */
 
+import cats.Eq
+import diffson.DiffOps
+import diffson.given
+import diffson.jsonpatch.Add
+import diffson.jsonpatch.Copy
+import diffson.jsonpatch.Move
+import diffson.jsonpatch.Remove
+import diffson.jsonpatch.Replace
+import diffson.jsonpatch.Test
+import diffson.jsonpatch.lcsdiff.remembering.given
+import diffson.ujson.given
 import java.io.FileInputStream
 import java.net.URI
 import java.net.http.HttpClient
@@ -28,14 +37,8 @@ import java.util as ju
 import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
 import scala.jdk.CollectionConverters.*
-import cats.Eq
-import diffson.DiffOps
-import diffson.given
-import diffson.jsonpatch.{Add, Remove, Replace, Move, Copy, Test}
-import diffson.jsonpatch.lcsdiff.remembering.given
-import diffson.ujson.given
 
-given Eq[ujson.Value]            = Eq.fromUniversalEquals
+given Eq[ujson.Value]              = Eq.fromUniversalEquals
 given diffson.lcs.Lcs[ujson.Value] = new diffson.lcs.DynamicProgLcs[ujson.Value]
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -66,37 +69,40 @@ def loadYaml(): Map[String, Map[String, String]] =
 
 // ── HTTP client ───────────────────────────────────────────────────────────────
 
-val http = HttpClient.newBuilder()
+val http = HttpClient
+  .newBuilder()
   .version(java.net.http.HttpClient.Version.HTTP_1_1)
   .build()
 
 def escapeJson(s: String): String =
   s.replace("\\", "\\\\")
-   .replace("\"", "\\\"")
-   .replace("\n", "\\n")
-   .replace("\r", "\\r")
-   .replace("\t", "\\t")
+    .replace("\"", "\\\"")
+    .replace("\n", "\\n")
+    .replace("\r", "\\r")
+    .replace("\t", "\\t")
 
 // ── Langfuse API ──────────────────────────────────────────────────────────────
 
 def fetchCurrentPromptText(name: String): Option[String] =
   val encoded = java.net.URLEncoder.encode(name, "UTF-8").replace("+", "%20")
-  val request = HttpRequest.newBuilder()
+  val request = HttpRequest
+    .newBuilder()
     .uri(URI.create(s"$baseUrl/api/public/v2/prompts/$encoded"))
     .header("Authorization", authHeader)
     .GET()
     .build()
   try
     val response = http.send(request, BodyHandlers.ofString())
-    if response.statusCode() == 200 then
-      Some(ujson.read(response.body())("prompt").str)
+    if response.statusCode() == 200 then Some(ujson.read(response.body())("prompt").str)
     else None
   catch case _ => None
 
 def upsertPrompt(name: String, promptText: String, labels: List[String]): (Int, String) =
   val labelsJson = labels.map(l => s"\"$l\"").mkString("[", ",", "]")
-  val body       = s"""{"name":"${escapeJson(name)}","type":"text","prompt":"${escapeJson(promptText)}","labels":$labelsJson}"""
-  val request    = HttpRequest.newBuilder()
+  val body       =
+    s"""{"name":"${escapeJson(name)}","type":"text","prompt":"${escapeJson(promptText)}","labels":$labelsJson}"""
+  val request = HttpRequest
+    .newBuilder()
     .uri(URI.create(s"$baseUrl/api/public/v2/prompts"))
     .header("Content-Type", "application/json")
     .header("Authorization", authHeader)
@@ -118,16 +124,16 @@ def upsertPrompt(name: String, promptText: String, labels: List[String]): (Int, 
 def showDiff(oldText: String, newText: String): Unit =
   val oldLines: ujson.Value = ujson.Arr(oldText.split("\n", -1).toIndexedSeq.map(l => ujson.Str(l))*)
   val newLines: ujson.Value = ujson.Arr(newText.split("\n", -1).toIndexedSeq.map(l => ujson.Str(l))*)
-  val patch    = oldLines.diff(newLines)
+  val patch                 = oldLines.diff(newLines)
   for op <- patch.ops do
     op match
-      case Add(_, value)            => println(s"    + ${value.str}")
-      case Remove(_, Some(old))     => println(s"    - ${old.str}")
-      case Remove(_, None)          => println(s"    - (removed)")
-      case Replace(_, value, old)   =>
+      case Add(_, value)          => println(s"    + ${value.str}")
+      case Remove(_, Some(old))   => println(s"    - ${old.str}")
+      case Remove(_, None)        => println(s"    - (removed)")
+      case Replace(_, value, old) =>
         old.foreach(o => println(s"    - ${o.str}"))
         println(s"    + ${value.str}")
-      case _                        => ()
+      case _ => ()
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 

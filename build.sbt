@@ -30,21 +30,21 @@ lazy val chat4s = (project in file("chat4s"))
   .settings(
     name := "chat4s",
     libraryDependencies ++= Seq(
-      "org.typelevel"  %% "cats-effect"                    % "3.7.0",
-      "co.fs2"         %% "fs2-core"                       % fs2Version,
-      "org.typelevel"  %% "otel4s-sdk"                     % otel4sVersion,
-      "org.typelevel"  %% "otel4s-sdk-exporter"            % otel4sVersion,
-      "io.circe"       %% "circe-core"                     % circeVersion,
-      "io.circe"       %% "circe-parser"                   % circeVersion,
-      "dev.langchain4j" % "langchain4j"                    % langchain4jVersion,
-      "dev.langchain4j" % "langchain4j-google-ai-gemini"   % langchain4jVersion,
-      "dev.langchain4j" % "langchain4j-open-ai"            % langchain4jVersion,
-      "dev.langchain4j" % "langchain4j-anthropic"          % langchain4jVersion,
-      "org.snakeyaml"   % "snakeyaml-engine"               % "3.0.1",
-      "com.outr"       %% "scribe"                         % scribeVersion,
-      "org.scalatest"  %% "scalatest"                      % scalatestVersion % Test,
-      "org.typelevel"  %% "cats-effect-testing-scalatest"  % "1.8.0"          % Test,
-      "org.typelevel"  %% "cats-effect-testkit"            % "3.7.0"          % Test
+      "org.typelevel"  %% "cats-effect"                   % "3.7.0",
+      "co.fs2"         %% "fs2-core"                      % fs2Version,
+      "org.typelevel"  %% "otel4s-sdk"                    % otel4sVersion,
+      "org.typelevel"  %% "otel4s-sdk-exporter"           % otel4sVersion,
+      "io.circe"       %% "circe-core"                    % circeVersion,
+      "io.circe"       %% "circe-parser"                  % circeVersion,
+      "dev.langchain4j" % "langchain4j"                   % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-google-ai-gemini"  % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-open-ai"           % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-anthropic"         % langchain4jVersion,
+      "org.snakeyaml"   % "snakeyaml-engine"              % "3.0.1",
+      "com.outr"       %% "scribe"                        % scribeVersion,
+      "org.scalatest"  %% "scalatest"                     % scalatestVersion % Test,
+      "org.typelevel"  %% "cats-effect-testing-scalatest" % "1.8.0"          % Test,
+      "org.typelevel"  %% "cats-effect-testkit"           % "3.7.0"          % Test
     )
   )
 

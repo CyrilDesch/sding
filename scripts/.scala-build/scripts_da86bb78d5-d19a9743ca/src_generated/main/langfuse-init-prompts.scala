@@ -1,5 +1,3 @@
-
-
 //> using scala 3.8.2
 //> using jvm 21
 //> using dep "org.snakeyaml:snakeyaml-engine:3.0.1"
@@ -30,10 +28,10 @@ import scala.jdk.CollectionConverters.*
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-val baseUrl    = sys.env.getOrElse("LANGFUSE_BASE_URL", "http://localhost:3000")
-val publicKey  = sys.env.getOrElse("LANGFUSE_PUBLIC_KEY", "pk-lf-sding-local-public-key")
-val secretKey  = sys.env.getOrElse("LANGFUSE_SECRET_KEY", "sk-lf-sding-local-secret-key")
-val yamlPath   = sys.env.getOrElse("PROMPTS_YAML_PATH", "server/src/main/resources/prompts.yaml")
+val baseUrl   = sys.env.getOrElse("LANGFUSE_BASE_URL", "http://localhost:3000")
+val publicKey = sys.env.getOrElse("LANGFUSE_PUBLIC_KEY", "pk-lf-sding-local-public-key")
+val secretKey = sys.env.getOrElse("LANGFUSE_SECRET_KEY", "sk-lf-sding-local-secret-key")
+val yamlPath  = sys.env.getOrElse("PROMPTS_YAML_PATH", "server/src/main/resources/prompts.yaml")
 
 val authHeader =
   "Basic " + java.util.Base64.getEncoder.encodeToString(s"$publicKey:$secretKey".getBytes)
@@ -56,21 +54,23 @@ def loadYaml(): Map[String, Map[String, String]] =
 
 // ── Langfuse API call ─────────────────────────────────────────────────────────
 
-val http = HttpClient.newBuilder()
+val http = HttpClient
+  .newBuilder()
   .version(java.net.http.HttpClient.Version.HTTP_1_1)
   .build()
 
 def escapeJson(s: String): String =
   s.replace("\\", "\\\\")
-   .replace("\"", "\\\"")
-   .replace("\n", "\\n")
-   .replace("\r", "\\r")
-   .replace("\t", "\\t")
+    .replace("\"", "\\\"")
+    .replace("\n", "\\n")
+    .replace("\r", "\\r")
+    .replace("\t", "\\t")
 
 def upsertPrompt(name: String, promptText: String, labels: List[String]): (Int, String) =
   val labelsJson = labels.map(l => s"\"$l\"").mkString("[", ",", "]")
-  val body       = s"""{"name":"${escapeJson(name)}","type":"text","prompt":"${escapeJson(promptText)}","labels":$labelsJson}"""
-  val request    = HttpRequest
+  val body       =
+    s"""{"name":"${escapeJson(name)}","type":"text","prompt":"${escapeJson(promptText)}","labels":$labelsJson}"""
+  val request = HttpRequest
     .newBuilder()
     .uri(URI.create(s"$baseUrl/api/public/v2/prompts"))
     .header("Content-Type", "application/json")
@@ -96,8 +96,8 @@ def upsertPrompt(name: String, promptText: String, labels: List[String]): (Int, 
   println()
 
   val sections = loadYaml()
-  var ok        = 0
-  var failed    = 0
+  var ok       = 0
+  var failed   = 0
 
   for
     (section, prompts) <- sections
