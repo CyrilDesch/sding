@@ -18,7 +18,7 @@ ThisBuild / libraryDependencySchemes += "org.typelevel" %% "otel4s-core-trace" %
 ThisBuild / libraryDependencySchemes += "io.getquill"   %% "quill-engine"      % "always"
 
 val http4sVersion      = "0.23.33"
-val circeVersion       = "0.14.15"
+val circeVersion       = "0.14.16"
 val fs2Version         = "3.13.0"
 val otel4sVersion      = "0.17.0"
 val scribeVersion      = "3.18.0"
@@ -30,21 +30,21 @@ lazy val chat4s = (project in file("chat4s"))
   .settings(
     name := "chat4s",
     libraryDependencies ++= Seq(
-      "org.typelevel"  %% "cats-effect"                    % "3.7.0",
-      "co.fs2"         %% "fs2-core"                       % fs2Version,
-      "org.typelevel"  %% "otel4s-sdk"                     % otel4sVersion,
-      "org.typelevel"  %% "otel4s-sdk-exporter"            % otel4sVersion,
-      "io.circe"       %% "circe-core"                     % circeVersion,
-      "io.circe"       %% "circe-parser"                   % circeVersion,
-      "dev.langchain4j" % "langchain4j"                    % langchain4jVersion,
-      "dev.langchain4j" % "langchain4j-google-ai-gemini"   % langchain4jVersion,
-      "dev.langchain4j" % "langchain4j-open-ai"            % langchain4jVersion,
-      "dev.langchain4j" % "langchain4j-anthropic"          % langchain4jVersion,
-      "org.snakeyaml"   % "snakeyaml-engine"               % "3.0.1",
-      "com.outr"       %% "scribe"                         % scribeVersion,
-      "org.scalatest"  %% "scalatest"                      % scalatestVersion % Test,
-      "org.typelevel"  %% "cats-effect-testing-scalatest"  % "1.8.0"          % Test,
-      "org.typelevel"  %% "cats-effect-testkit"            % "3.7.0"          % Test
+      "org.typelevel"  %% "cats-effect"                   % "3.7.0",
+      "co.fs2"         %% "fs2-core"                      % fs2Version,
+      "org.typelevel"  %% "otel4s-sdk"                    % otel4sVersion,
+      "org.typelevel"  %% "otel4s-sdk-exporter"           % otel4sVersion,
+      "io.circe"       %% "circe-core"                    % circeVersion,
+      "io.circe"       %% "circe-parser"                  % circeVersion,
+      "dev.langchain4j" % "langchain4j"                   % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-google-ai-gemini"  % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-open-ai"           % langchain4jVersion,
+      "dev.langchain4j" % "langchain4j-anthropic"         % langchain4jVersion,
+      "org.snakeyaml"   % "snakeyaml-engine"              % "3.0.1",
+      "com.outr"       %% "scribe"                        % scribeVersion,
+      "org.scalatest"  %% "scalatest"                     % scalatestVersion % Test,
+      "org.typelevel"  %% "cats-effect-testing-scalatest" % "1.8.0"          % Test,
+      "org.typelevel"  %% "cats-effect-testkit"           % "3.7.0"          % Test
     )
   )
 
