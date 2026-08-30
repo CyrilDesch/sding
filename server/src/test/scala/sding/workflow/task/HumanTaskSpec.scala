@@ -8,8 +8,8 @@ import chat4s.io.SelectionItem
 import chat4s.io.UserInputRequest
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
-import sding.workflow.task.*
 import sding.workflow.state.ProjectContextState
+import sding.workflow.task.*
 
 class HumanTaskSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 

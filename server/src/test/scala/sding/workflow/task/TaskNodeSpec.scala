@@ -3,7 +3,9 @@ package sding.workflow.task
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import chat4s.ai.*
-import chat4s.ai.prompt.{PromptLink, PromptLoader, PromptTemplate}
+import chat4s.ai.prompt.PromptLink
+import chat4s.ai.prompt.PromptLoader
+import chat4s.ai.prompt.PromptTemplate
 import chat4s.io.ChatContext
 import chat4s.io.MessageFormat
 import chat4s.io.SelectionItem
@@ -11,8 +13,8 @@ import chat4s.io.UserInputRequest
 import io.circe.Decoder
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
-import sding.workflow.task.*
 import sding.workflow.state.ProjectContextState
+import sding.workflow.task.*
 
 class TaskNodeSpec extends AsyncWordSpec with AsyncIOSpec with Matchers:
 

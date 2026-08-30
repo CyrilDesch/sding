@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.Resource
 import cats.syntax.all.*
+import chat4s.ai.prompt.LivePromptLoader
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.getquill.*
@@ -15,7 +16,6 @@ import org.http4s.server.Router
 import org.typelevel.otel4s.sdk.OpenTelemetrySdk
 import org.typelevel.otel4s.sdk.exporter.otlp.autoconfigure.OtlpExportersAutoConfigure
 import org.typelevel.otel4s.trace.Tracer
-import chat4s.ai.prompt.LivePromptLoader
 import sding.auth.AuthService
 import sding.config.AppConfig
 import sding.config.LangfuseSettings
